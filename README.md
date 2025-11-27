@@ -1,8 +1,10 @@
+
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>邂逅孫孫塔羅 - 大阿爾克那牌</title>
+    <p>孫孫帶著訊息等著你哦</p>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700;900&family=Philosopher:wght@400;700&family=Noto+Serif+TC:wght@400;700&display=swap" rel="stylesheet">
