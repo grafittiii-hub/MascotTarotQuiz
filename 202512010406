@@ -26,7 +26,9 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Philosopher:wght@400;700&family=Noto+Serif+TC:wght@400;700&family=Noto+Sans+Symbols+2&display=block" rel="stylesheet">
+    <!-- Preload critical fonts for faster rendering -->
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Philosopher:wght@400;700&family=Noto+Serif+TC:wght@400;700&family=Noto+Sans+Symbols+2&display=swap">
+    <link href="https://fonts.googleapis.com/css2?family=Philosopher:wght@400;700&family=Noto+Serif+TC:wght@400;700&family=Noto+Sans+Symbols+2&display=swap" rel="stylesheet">
 
     <!-- Libraries for image generation -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -90,19 +92,19 @@
             --color-text-light: #e8d5c4;
             --color-text-gold: #f4e4c1;
             --color-bg-dark: #0d0221;
-            --font-title: 'Noto Serif TC', serif;
-            --font-body: 'Noto Serif TC', serif;
+            --font-title: 'Noto Serif TC', 'Microsoft JhengHei', 'PingFang TC', serif;
+            --font-body: 'Noto Serif TC', 'Microsoft JhengHei', 'PingFang TC', serif;
         }
 
         /* English font override when lang is 'en' */
         html[lang="en"] {
-            --font-title: 'Philosopher', serif;
-            --font-body: 'Philosopher', serif;
+            --font-title: 'Philosopher', Georgia, 'Times New Roman', serif;
+            --font-body: 'Philosopher', Georgia, 'Times New Roman', serif;
         }
 
         /* Style for English text within Chinese content */
         .en-text {
-            font-family: 'Philosopher', serif;
+            font-family: 'Philosopher', Georgia, 'Times New Roman', serif;
         }
 
         /* Style for moon symbols to ensure consistent rendering */
@@ -398,11 +400,23 @@
         }
 
         h1 {
-            font-size: 1.8em;
+            font-size: clamp(1.4em, 5.5vw, 2.2em);
             margin-top: 10px;
             margin-bottom: 18px;
             font-weight: 900;
             line-height: 1.3;
+        }
+
+        /* Special styling for intro title to ensure single-line fit */
+        #intro-title {
+            font-size: clamp(1.2em, 6vw, 2.2em);
+            white-space: nowrap;
+            overflow: visible;
+        }
+
+        /* Allow line breaks within intro title */
+        #intro-title br {
+            display: block;
         }
 
         h2 {
@@ -1322,8 +1336,11 @@
         }
 
         @media (max-width: 768px) {
+            #intro-title {
+                font-size: clamp(1.1em, 7vw, 1.8em);
+            }
+
             h1 {
-                font-size: 1.6em;
                 line-height: 1.3;
             }
 
@@ -1437,8 +1454,11 @@
         }
 
         @media (max-width: 480px) {
+            #intro-title {
+                font-size: clamp(1em, 8vw, 1.6em);
+            }
+
             h1 {
-                font-size: 1.4em;
                 margin-bottom: 15px;
             }
 
@@ -1899,8 +1919,8 @@
             配對結果純粹娛樂 僅供參考
         </div>
         <div id="copyright-notice" style="text-align: center; margin-top: 15px; padding: 10px; font-size: 0.65em; color: rgba(212, 175, 55, 0.6); line-height: 1.3; border-top: 1px solid rgba(212, 175, 55, 0.2);">
-            2025 孫孫暉日塔羅 by @grafittiii_uru<br>
-            All tarot card artwork is original. Credit to GMM Mascots and AI's assistance. 
+            © 2025 孫孫暉日塔羅 by @grafittiii_uru<br>
+            All tarot card artwork is original and copyrighted. Credit to AI's assistant. 
         </div>
     </div>
 
@@ -2091,7 +2111,7 @@
         const questionsData = {
             zh: [
                 { question: "當你進入房間時, 你第一眼看到的物品是?", options: [{ text: "古典花瓶與綻放的鮮花", value: 0 }, { text: "色彩繽紛的枕頭與被套", value: 1 }, { text: "玻璃窗上的雨點", value: 2 }, { text: "地上堆放的禮物盒", value: 3 }] },
-                { question: "在神秘的桌子上, 你想拿起哪一樣物品來引導你?", options: [{ text: "透明的水晶球, 觀看未來的影像", value: 0 }, { text: "古老的鑰匙, 開啟被塵封的門", value: 4 }, { text: "發光的飾物, 朋友贈送的心意", value: 8 }, { text: "純白的羽毛, 象徵輕盈與自由", value: 12 }] },
+                { question: "在神秘的桌子上, 你想拿起哪一樣物品來引導你?", options: [{ text: "透明���水晶球, 觀看未來的影像", value: 0 }, { text: "古老的鑰匙, 開啟被塵封的門", value: 4 }, { text: "發光的飾物, 朋友贈送的心意", value: 8 }, { text: "純白的羽毛, 象徵輕盈與自由", value: 12 }] },
                 { question: "你聽到遠處傳來一種聲音, 最能撫慰你心靈的是?", options: [{ text: "寧靜的雪落聲, 一片沉寂與空白", value: 0 }, { text: "爐火中木材的爆裂聲, 溫暖而規律", value: 2 }, { text: "遠方大海拍打岸邊的潮汐聲, 充滿能量", value: 4 }, { text: "古老且遙遠的鐘擺聲, 代表時間的流動", value: 6 }] },
                 { question: "你走在一片迷霧中, 腳下延伸著哪一種路徑?", options: [{ text: "未曾有人走過的泥土小徑, 充滿未知", value: 0 }, { text: "被藤蔓覆蓋的古老石板路, 充滿歷史感", value: 3 }, { text: "鋪滿金幣的明亮大道, 直通繁榮", value: 6 }, { text: "懸浮於空中的彩虹橋, 只存在於夢境", value: 9 }] }
             ],
@@ -2105,13 +2125,13 @@
 
         // Tarot cards data (names are bilingual, descriptions are separate)
         const tarotCards = [
-            { name: "0 愚者 <span class='en-text'>(The Fool)</span>", image: "https://pfst.cf2.poecdn.net/base/image/9827674879461d64b0aea493d8cb19ce40cb72f6dcddae933235132a66bf48e1?w=4096&h=4096", descZh: "🎉 **啟示: 開始的勇氣** 🎉 你正站在一個令人興奮的起點。像一個初生嬰兒般保持對世界的好奇心與開放性，相信直覺會引導你走向美好的未知旅程。放手去闖吧，宇宙會支持你!", descEn: "🎉 **Revelation: The Courage to Begin** 🎉 You stand at an exciting starting point. Maintain the curiosity and openness of a newborn to the world, trusting your intuition to guide you toward a beautiful unknown journey. Take the leap—the universe supports you!" },
+            { name: "0 愚者 <span class='en-text'>(The Fool)</span>", image: "https://pfst.cf2.poecdn.net/base/image/9827674879461d64b0aea493d8cb19ce40cb72f6dcddae933235132a66bf48e1?w=4096&h=4096", descZh: "🎉 **啟示: 開始的勇氣** 🎉 你正站在一個令人興奮的起點。像一個初生嬰兒般保持對世界的好奇心與開���性，相信直覺會引導你走向美好的未知旅程。放手去闖吧，宇宙會支持你!", descEn: "🎉 **Revelation: The Courage to Begin** 🎉 You stand at an exciting starting point. Maintain the curiosity and openness of a newborn to the world, trusting your intuition to guide you toward a beautiful unknown journey. Take the leap—the universe supports you!" },
             { name: "1 魔術師 <span class='en-text'>(The Magician)</span>", image: "https://pfst.cf2.poecdn.net/base/image/b08a6693f2bdb4a2bce89802ec52d73b39296ac1957ce9eec7de726cbea1123f?w=4096&h=4096", descZh: "✨ **啟示: 無限的創造力** ✨ 所有的工具和資源都已在你手中。你擁有強大的意志力去實現夢想，現在正是行動的最佳時機。運用你的天賦創造奇蹟!", descEn: "✨ **Revelation: Infinite Creativity** ✨ All the tools and resources are already in your hands. You possess a powerful will to realize your dreams, and now is the perfect time to act. Use your gifts to create miracles!" },
             { name: "2 女祭司 <span class='en-text'>(The High Priestess)</span>", image: "https://pfst.cf2.poecdn.net/base/image/f80fa7d6204fc61fbe44dfbee2d89bdc67a129f15df0fdc41a26ae1a87c67834?w=4096&h=4096", descZh: "🧘‍♀️ **啟示: 內在的智慧** 🧘‍♀️ 現在是傾聽內心聲音的時候。你的直覺和潛意識正為你提供最準確的指引。保持沉靜，答案就在你心中深處，靜待揭曉。", descEn: "🧘‍♀️ **Revelation: Inner Wisdom** 🧘‍♀️ Now is the time to listen to your inner voice. Your intuition and subconscious are providing you with the most accurate guidance. Stay calm—the answer lies deep within your heart, waiting to be revealed." },
             { name: "3 皇后 <span class='en-text'>(The Empress)</span>", image: "https://pfst.cf2.poecdn.net/base/image/522f861eeb6af760ce61f2ce40380a5a3bd70c22c9ce01591e0236ca5df34ffd?w=4096&h=4096", descZh: "🌿 **啟示: 豐盛與滋養** 🌿 你被愛與美包圍。擁抱生活中的豐盛與舒適，照顧好自己和身邊的人。讓創造力開花結果，享受生命的滋養力量。", descEn: "🌿 **Revelation: Abundance and Nourishment** 🌿 You are surrounded by love and beauty. Embrace the abundance and comfort in life, take care of yourself and those around you. Let creativity blossom and enjoy life's nourishing power." },
             { name: "4 皇帝 <span class='en-text'>(The Emperor)</span>", image: "https://pfst.cf2.poecdn.net/base/image/f7ee0a1abad1f0a1e55c2ccbaf24c7da55b4ca54e1afd26e3b6aade9b7116ea7?w=4096&h=4096", descZh: "🛡️ **啟示: 結構與領導力** 🛡️ 你擁有建立穩固基礎和達成目標的能力。展現你的決斷力與領導力，用清晰的規則和計劃來掌握生活。你是自己的主人!", descEn: "🛡️ **Revelation: Structure and Leadership** 🛡️ You have the ability to build a solid foundation and achieve your goals. Demonstrate your decisiveness and leadership, master your life with clear rules and plans. You are your own master!" },
             { name: "5 教皇 <span class='en-text'>(The Hierophant)</span>", image: "https://pfst.cf2.poecdn.net/base/image/b48ff47486c4ec33cb407dfa31a9254f7902f709ccf3512abc103f66d74049c7?w=4096&h=4096", descZh: " 📜**啟示: 學習與傳承** 📜 尋求智慧與啟發的時刻。你將從傳統、導師或社群中獲得寶貴的指導。保持謙遜，並準備好將所學知識傳遞給他人。", descEn: "📜 **Revelation: Learning and Legacy** 📜 A moment to seek wisdom and inspiration. You will receive valuable guidance from tradition, mentors, or community. Stay humble and be ready to pass on your knowledge to others." },
-            { name: "6 戀人 <span class='en-text'>(The Lovers)</span>", image: "https://pfst.cf2.poecdn.net/base/image/8bef3fba764a2ef02b89bda3a50d5ff7db3d92c7958f21ca8eb1b25c8e600a3d?w=4096&h=4096", descZh: "💖 **啟示: 和諧的選擇** 💖 這是一張關於和諧、愛與重要抉擇的牌。你的心靈和價值觀已達成一致，勇敢地做出那個最貼近你靈魂的決定。愛將是你的力量。", descEn: "💖 **Revelation: Harmonious Choice** 💖 This card speaks of harmony, love, and important decisions. Your heart and values are aligned—bravely make the choice that resonates most with your soul. Love will be your strength." },
+            { name: "6 戀人 <span class='en-text'>(The Lovers)</span>", image: "https://pfst.cf2.poecdn.net/base/image/8bef3fba764a2ef02b89bda3a50d5ff7db3d92c7958f21ca8eb1b25c8e600a3d?w=4096&h=4096", descZh: "💖 **啟示: 和諧的選擇** 💖 這是一張關於和諧、愛與重要抉擇的牌。你的心靈和���值觀已達成一致，勇敢地做出那個最貼近你靈魂的決定。愛將是你的力量。", descEn: "💖 **Revelation: Harmonious Choice** 💖 This card speaks of harmony, love, and important decisions. Your heart and values are aligned—bravely make the choice that resonates most with your soul. Love will be your strength." },
             { name: "7 戰車 <span class='en-text'>(The Chariot)</span>", image: "https://pfst.cf2.poecdn.net/base/image/7012708ef7f9bc030a2cb3503a03d2bf1db276d8a2fc7f44356bf83c75d1fe7d?w=4096&h=4096", descZh: "🚀 **啟示: 堅定的勝利** 🚀 你正以驚人的速度向目標前進。只要保持專注、自信和內在的平衡，任何挑戰都無法阻擋你。勝利就在不遠的前方!", descEn: "🚀 **Revelation: Determined Victory** 🚀 You're advancing toward your goal at an amazing speed. As long as you stay focused, confident, and internally balanced, no challenge can stop you. Victory lies just ahead!" },
             { name: "8 力量 <span class='en-text'>(Strength)</span>", image: "https://pfst.cf2.poecdn.net/base/image/37fda1ff9085b01fa4d7eb81f143eb0c69e5daaa76db299cec4abdf8e35d18e2?w=4096&h=4096", descZh: "🦁 **啟示: 溫柔的韌性** 🦁 真正的力量來自於內心的平靜與溫柔。面對困難時，請用愛心和耐心來馴服內在的焦慮。你比自己想像的更強大!", descEn: "🦁 **Revelation: Gentle Resilience** 🦁 True strength comes from inner peace and gentleness. When facing difficulties, use love and patience to tame inner anxiety. You are stronger than you think!" },
             { name: "9 隱者 <span class='en-text'>(The Hermit)</span>", image: "https://pfst.cf2.poecdn.net/base/image/7fa8b296a7b7f1ef13130918a0e0991204f1bf1e5d45a32c9cc5f61cd031216e?w=4096&h=4096", descZh: "💡 **啟示: 尋找真理** 💡 這是暫時遠離喧囂、自我反思的黃金時期。透過內省，你將獲得清晰的洞察和深刻的個人真理。光芒源於內在。", descEn: "💡 **Revelation: Seeking Truth** 💡 This is a golden period to temporarily distance yourself from noise and engage in self-reflection. Through introspection, you will gain clear insight and profound personal truth. The light comes from within." },
@@ -3377,7 +3397,7 @@
 
             ctx.shadowBlur = 0;
 
-            imageEndY = imgY + imgHeight + 50; 
+            imageEndY = imgY + imgHeight + 50; 
         }
 
         // Calculate available space
