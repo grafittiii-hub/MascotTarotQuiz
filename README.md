@@ -1,4 +1,4 @@
-
+<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
@@ -109,6 +109,9 @@
         /* Style for moon symbols to ensure consistent rendering */
         .moon-symbols {
             font-family: 'Noto Sans Symbols 2', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji', sans-serif;
+            display: inline;
+            color: inherit;
+            text-shadow: inherit;
         }
 
         * {
@@ -1660,14 +1663,17 @@
 
         .loading-symbol.ready {
             animation:
-                loadingGlowIntense 1.5s ease-in-out infinite,
+                loadingGlowIntense 1.2s ease-in-out infinite,
                 secretDoorSpin 2.4s linear infinite;
             text-shadow:
-                0 0 50px rgba(212, 175, 55, 1),
-                0 0 100px rgba(193, 84, 193, 1),
-                0 0 150px rgba(212, 175, 55, 0.9),
-                0 0 200px rgba(193, 84, 193, 0.7);
+                0 0 60px rgba(212, 175, 55, 1),
+                0 0 120px rgba(193, 84, 193, 1),
+                0 0 180px rgba(212, 175, 55, 1),
+                0 0 240px rgba(193, 84, 193, 0.9),
+                0 0 300px rgba(212, 175, 55, 0.8),
+                0 0 360px rgba(193, 84, 193, 0.6);
             transform: scale(1.3);
+            filter: brightness(1.3);
         }
 
         @keyframes loadingPulse {
@@ -1684,17 +1690,23 @@
         @keyframes loadingGlowIntense {
             0%, 100% {
                 text-shadow:
-                    0 0 50px rgba(212, 175, 55, 1),
-                    0 0 100px rgba(193, 84, 193, 1),
-                    0 0 150px rgba(212, 175, 55, 0.9),
-                    0 0 200px rgba(193, 84, 193, 0.7);
+                    0 0 60px rgba(212, 175, 55, 1),
+                    0 0 120px rgba(193, 84, 193, 1),
+                    0 0 180px rgba(212, 175, 55, 1),
+                    0 0 240px rgba(193, 84, 193, 0.9),
+                    0 0 300px rgba(212, 175, 55, 0.8),
+                    0 0 360px rgba(193, 84, 193, 0.6);
+                filter: brightness(1.3) drop-shadow(0 0 30px rgba(212, 175, 55, 0.8));
             }
             50% {
                 text-shadow:
-                    0 0 70px rgba(212, 175, 55, 1),
-                    0 0 130px rgba(193, 84, 193, 1),
-                    0 0 190px rgba(212, 175, 55, 1),
-                    0 0 250px rgba(193, 84, 193, 0.8);
+                    0 0 80px rgba(212, 175, 55, 1),
+                    0 0 160px rgba(193, 84, 193, 1),
+                    0 0 240px rgba(212, 175, 55, 1),
+                    0 0 320px rgba(193, 84, 193, 1),
+                    0 0 400px rgba(212, 175, 55, 0.9),
+                    0 0 480px rgba(193, 84, 193, 0.7);
+                filter: brightness(1.5) drop-shadow(0 0 50px rgba(193, 84, 193, 1));
             }
         }
 
@@ -1889,7 +1901,7 @@
         </div>
         <div id="copyright-notice" style="text-align: center; margin-top: 15px; padding: 10px; font-size: 0.65em; color: rgba(212, 175, 55, 0.6); line-height: 1.3; border-top: 1px solid rgba(212, 175, 55, 0.2);">
             © 2025 孫孫暉日塔羅 by @grafittiii_uru<br>
-            All tarot card artwork is original and copyrighted. Credit to AI's assistant. 
+            All tarot card artwork is original and copyrighted. Credit to AI's assistant. 
         </div>
     </div>
 
@@ -1957,9 +1969,9 @@
             return canvas.toDataURL('image/jpeg', quality);
         }
 
-        // Calculate answer sequence to unlock a specific card (randomized)
-        function calculateAnswerSequence(targetIndex) {
-            // Question values: [0,1,2,3], [0,4,8,12], [0,2,4,6], [0,3,6,9]
+        // Pre-calculate all valid sequences for each card (performance optimization)
+        const cardSequencesCache = (function() {
+            const cache = {};
             const questionValues = [
                 [0, 1, 2, 3],
                 [0, 4, 8, 12],
@@ -1967,25 +1979,31 @@
                 [0, 3, 6, 9]
             ];
 
-            // Find ALL combinations that give targetIndex when mod 22
-            const validSequences = [];
-            for (let q1 = 0; q1 < 4; q1++) {
-                for (let q2 = 0; q2 < 4; q2++) {
-                    for (let q3 = 0; q3 < 4; q3++) {
-                        for (let q4 = 0; q4 < 4; q4++) {
-                            const sum = questionValues[0][q1] + questionValues[1][q2] +
-                                       questionValues[2][q3] + questionValues[3][q4];
-                            if (sum % 22 === targetIndex) {
-                                // Store 1-indexed (1-4 instead of 0-3)
-                                validSequences.push(`${q1 + 1}${q2 + 1}${q3 + 1}${q4 + 1}`);
+            // Pre-calculate for all 22 cards
+            for (let targetIndex = 0; targetIndex < 22; targetIndex++) {
+                const validSequences = [];
+                for (let q1 = 0; q1 < 4; q1++) {
+                    for (let q2 = 0; q2 < 4; q2++) {
+                        for (let q3 = 0; q3 < 4; q3++) {
+                            for (let q4 = 0; q4 < 4; q4++) {
+                                const sum = questionValues[0][q1] + questionValues[1][q2] +
+                                           questionValues[2][q3] + questionValues[3][q4];
+                                if (sum % 22 === targetIndex) {
+                                    validSequences.push(`${q1 + 1}${q2 + 1}${q3 + 1}${q4 + 1}`);
+                                }
                             }
                         }
                     }
                 }
+                cache[targetIndex] = validSequences;
             }
+            return cache;
+        })();
 
-            // Return a random sequence from all valid ones
-            if (validSequences.length > 0) {
+        // Calculate answer sequence to unlock a specific card (fast lookup)
+        function calculateAnswerSequence(targetIndex) {
+            const validSequences = cardSequencesCache[targetIndex];
+            if (validSequences && validSequences.length > 0) {
                 const randomIndex = Math.floor(Math.random() * validSequences.length);
                 return validSequences[randomIndex];
             }
@@ -2074,7 +2092,7 @@
         const questionsData = {
             zh: [
                 { question: "當你進入房間時, 你第一眼看到的物品是?", options: [{ text: "古典花瓶與綻放的鮮花", value: 0 }, { text: "色彩繽紛的枕頭與被套", value: 1 }, { text: "玻璃窗上的雨點", value: 2 }, { text: "地上堆放的禮物盒", value: 3 }] },
-                { question: "在神秘的桌子上, 你想拿起哪一樣物品來引導你?", options: [{ text: "透明的水晶球, 觀看未來的影像", value: 0 }, { text: "古老的鑰匙, 開啟被塵封的門", value: 4 }, { text: "發光的飾物, 朋友贈送的心意", value: 8 }, { text: "純白的羽毛, 象徵輕盈與自由", value: 12 }] },
+                { question: "在神秘的桌子上, 你想拿起哪一樣物品來引導你?", options: [{ text: "透明�����水晶球, 觀看未來的影像", value: 0 }, { text: "古老的鑰匙, 開啟被塵封的門", value: 4 }, { text: "發光的飾物, 朋友贈送的心意", value: 8 }, { text: "純白的羽毛, 象徵輕盈與自由", value: 12 }] },
                 { question: "你聽到遠處傳來一種聲音, 最能撫慰你心靈的是?", options: [{ text: "寧靜的雪落聲, 一片沉寂與空白", value: 0 }, { text: "爐火中木材的爆裂聲, 溫暖而規律", value: 2 }, { text: "遠方大海拍打岸邊的潮汐聲, 充滿能量", value: 4 }, { text: "古老且遙遠的鐘擺聲, 代表時間的流動", value: 6 }] },
                 { question: "你走在一片迷霧中, 腳下延伸著哪一種路徑?", options: [{ text: "未曾有人走過的泥土小徑, 充滿未知", value: 0 }, { text: "被藤蔓覆蓋的古老石板路, 充滿歷史感", value: 3 }, { text: "鋪滿金幣的明亮大道, 直通繁榮", value: 6 }, { text: "懸浮於空中的彩虹橋, 只存在於夢境", value: 9 }] }
             ],
@@ -2103,7 +2121,7 @@
             { name: "12 倒吊人 <span class='en-text'>(The Hanged Man)</span>", image: "https://pfst.cf2.poecdn.net/base/image/6f60e6bb2e391bc5e9b745677d41d2134434aafe16bd2acc3fe37ce408a88aa9?w=4096&h=4096", descZh: "🔄 **啟示: 嶄新的視角** 🔄 這需要你暫停腳步，從一個全新的角度看待問題。放下控制慾，接受現狀。當你願意換個方向思考時，突破隨之而來。", descEn: "🔄 **Revelation: Fresh Perspective** 🔄 This requires you to pause and view problems from a completely new angle. Let go of the need for control, accept the current situation. When you're willing to think from a different direction, breakthroughs will follow." },
             { name: "13 死神 <span class='en-text'>(Death)</span>", image: "https://pfst.cf2.poecdn.net/base/image/579e3bf2c73af72a0e0a23990048df8e8c9c3abb00625d194f96a6b356676432?w=4096&h=4096", descZh: "🦋 **啟示: 積極的轉變** 🦋 這不是結束，而是蛻變的開始! 舊的模式、習慣或狀態正在結束，為更美好、更真實的你騰出空間。迎接重生，輕裝前行。", descEn: "🦋 **Revelation: Positive Transformation** 🦋 This is not an ending, but the beginning of transformation! Old patterns, habits, or states are concluding, making room for a better, more authentic you. Embrace rebirth and move forward lightly." },
             { name: "14 節制 <span class='en-text'>(Temperance)</span>", image: "https://pfst.cf2.poecdn.net/base/image/19b42ab117b9bb33516a6bf4f73a1959b54b9740e8bf8ae5ac406b647acc8d11?w=4096&h=4096", descZh: "💧 **啟示: 完美的融合** 💧 保持耐心和中庸之道。透過優雅地混合內在與外在的力量，你將在生活中找到完美的平衡點。和諧與療癒正在發生。", descEn: "💧 **Revelation: Perfect Integration** 💧 Maintain patience and the middle way. By gracefully blending inner and outer forces, you will find the perfect balance point in life. Harmony and healing are taking place." },
-            { name: "15 惡魔 <span class='en-text'>(The Devil)</span>", image: "https://pfst.cf2.poecdn.net/base/image/35c6902e9b4a6c426823bae36c0f9b3afd352cd4cc3a1873a443fdde34ff6ad4?w=4096&h=4096", descZh: "⛓️ **啟示: 掙脫束縛** ⛓️ 覺察那些阻礙你的物質或精神依賴。你擁有掙���任何限制的力量，只要你願意承認並改變。你是自由的，選擇權在你手上!", descEn: "⛓️ **Revelation: Breaking Free from Bonds** ⛓️ Become aware of the material or spiritual dependencies hindering you. You have the power to break free from any limitation, as long as you're willing to acknowledge and change. You are free—the choice is in your hands!" },
+            { name: "15 惡魔 <span class='en-text'>(The Devil)</span>", image: "https://pfst.cf2.poecdn.net/base/image/35c6902e9b4a6c426823bae36c0f9b3afd352cd4cc3a1873a443fdde34ff6ad4?w=4096&h=4096", descZh: "⛓️ **啟示: 掙脫束縛** ⛓️ 覺察那些阻礙你的物質或精神依賴。你擁有掙脫任何限制的力量，只要你願意承認並改變。你是自由的，選擇權在你手上!", descEn: "⛓️ **Revelation: Breaking Free from Bonds** ⛓️ Become aware of the material or spiritual dependencies hindering you. You have the power to break free from any limitation, as long as you're willing to acknowledge and change. You are free—the choice is in your hands!" },
             { name: "16 塔 <span class='en-text'>(The Tower)</span>", image: "https://pfst.cf2.poecdn.net/base/image/25f78ba4a1feb5455a58764222a82cdea8073fc9da103101b53a031a846c2d38?w=4096&h=4096", descZh: "⚡ **啟   : 突破與釋放** ⚡ 突然的變動正為你清除不穩定的結構，這是一個強大的覺醒時刻。相信舊的崩塌是為了迎接更堅固、更真實的未來，你將重生!", descEn: "⚡ **Revelation: Breakthrough and Release** ⚡ Sudden changes are clearing unstable structures for you—this is a powerful moment of awakening. Trust that the collapse of the old is to welcome a more solid, more authentic future. You will be reborn!" },
             { name: "17 星星 <span class='en-text'>(The Star)</span>", image: "https://pfst.cf2.poecdn.net/base/image/a14eb4206eee139e821aeb51346995d81664346974d835998a22f8e4d9e68349?w=4096&h=4096", descZh: "🌟 **啟示: 希望與靈感** 🌟 偉大的希望和心靈的平靜正在注入你的生命。相信你的夢想，你正受到宇宙的指引。保持樂觀，你閃耀著獨特的光芒。", descEn: "🌟 **Revelation: Hope and Inspiration** 🌟 Great hope and spiritual peace are being infused into your life. Believe in your dreams—you are being guided by the universe. Stay optimistic; you shine with a unique light." },
             { name: "18 月亮 <span class='en-text'>(The Moon)</span>", image: "https://pfst.cf2.poecdn.net/base/image/117301bf0dd5c2de7348f87eab6f16e6414e29b12c7f222de9eb3414d8c8b938?w=4096&h=4096", descZh: "🌙 **啟示: 信任直覺** 🌙 雖然路途看起來有些迷霧，但請相信你的內在指引。讓想像力流動，你的直覺會像月光一樣，照亮那些隱藏的真相。別怕未知!", descEn: "🌙 **Revelation: Trust Intuition** 🌙 Though the path may seem foggy, trust your inner guidance. Let imagination flow; your intuition will illuminate hidden truths like moonlight. Don't fear the unknown!" },
@@ -3360,7 +3378,7 @@
 
             ctx.shadowBlur = 0;
 
-            imageEndY = imgY + imgHeight + 50; 
+            imageEndY = imgY + imgHeight + 50; 
         }
 
         // Calculate available space
@@ -3590,9 +3608,11 @@
             // ==================================================
 
             const finalCard = tarotCards[totalScore % 22];
+            // Remove HTML tags from card name for sharing
+            const cardNameText = finalCard.name.replace(/<[^>]*>/g, '');
             const shareText = currentLanguage === 'zh'
-                ? `🔮 我的專屬啟示是【${finalCard.name}】!\n\n來試試你的專屬塔羅啟示: ${SHARE_LINK}`
-                : `🔮 My personal revelation is【${finalCard.name}】!\n\nTry your own tarot revelation: ${SHARE_LINK}`;
+                ? `🔮 我的專屬啟示是【${cardNameText}】!\n\n來試試你的專屬塔羅啟示: ${SHARE_LINK}`
+                : `🔮 My personal revelation is【${cardNameText}】!\n\nTry your own tarot revelation: ${SHARE_LINK}`;
 
             if (navigator.share) {
                 try {
