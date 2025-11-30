@@ -409,7 +409,7 @@
 
         /* Special styling for intro title to ensure single-line fit */
         #intro-title {
-            font-size: clamp(1.0em, 6vw, 1.9em);
+            font-size: clamp(1.0em, 6vw, 1.6em);
             white-space: nowrap;
             overflow: visible;
         }
