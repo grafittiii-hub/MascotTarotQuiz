@@ -2850,55 +2850,254 @@
         async function saveGalleryCollection() {
             playButtonSound();
             const lang = t[currentLanguage];
-            const container = document.querySelector('.gallery-container');
 
-            if (!container) return;
+            // Get unlocked cards
+            const unlockedCardIndices = Array.from(unlockedCards).sort((a, b) => a - b);
+            const numUnlocked = unlockedCardIndices.length;
 
-            // Show loading indicator
-            const loading = showLoading(currentLanguage === 'zh' ? '✨ 正在儲存圖鑑...' : '✨ Saving the collection...');
+            if (numUnlocked === 0) {
+                showCustomAlert(currentLanguage === 'zh' ? '還沒有解鎖任何卡片' : 'No cards unlocked yet');
+                return;
+            }
+
+            // Show loading indicator with cancel option
+            let cancelled = false;
+            const cancelFunc = () => {
+                cancelled = true;
+                hideLoading();
+            };
+            const loading = showLoading(
+                currentLanguage === 'zh' ? '✨ 正在儲存圖鑑...' : '✨ Saving the collection...',
+                cancelFunc
+            );
 
             // Use setTimeout to allow loading UI to render
             await new Promise(resolve => setTimeout(resolve, 50));
 
             try {
-                // Temporarily hide action buttons and adjust for screenshot
-                const actions = container.querySelector('.gallery-actions');
-                const originalDisplay = actions ? actions.style.display : '';
-                if (actions) actions.style.display = 'none';
+                if (cancelled) return;
 
-                // Use html2canvas to capture the gallery
-                const canvas = await html2canvas(container, {
-                    backgroundColor: '#1a0d2e',
-                    scale: 2,
-                    logging: false,
-                    useCORS: true
+                // Same canvas size as single save (1200x1600)
+                const canvas = document.createElement('canvas');
+                canvas.width = 1200;
+                canvas.height = 1600;
+                const ctx = canvas.getContext('2d');
+
+                // Draw starry background using shared helper
+                drawStarryBackground(ctx, canvas);
+
+                // Draw decorative stars using shared helper
+                drawDecorativeStars(ctx, canvas);
+
+                if (cancelled) return;
+
+                // Draw title
+                ctx.textAlign = 'center';
+                ctx.fillStyle = '#e8c551';
+                ctx.font = 'bold 68px "Noto Serif TC", serif';
+                ctx.shadowColor = 'rgba(212, 175, 55, 0.8)';
+                ctx.shadowBlur = 30;
+                const titleText = currentLanguage === 'zh' ? '✦ 塔羅圖鑑 ✦' : '✦ Tarot Collection ✦';
+                ctx.fillText(titleText, canvas.width / 2, 150);
+
+                // Subtitle with unlock count
+                ctx.font = 'bold 38px "Noto Serif TC", serif';
+                ctx.fillStyle = '#c154c1';
+                ctx.shadowBlur = 20;
+                const subtitleText = currentLanguage === 'zh'
+                    ? `已解鎖 ${numUnlocked}/22 張大阿爾克那`
+                    : `Unlocked ${numUnlocked}/22 Major Arcana`;
+                ctx.fillText(subtitleText, canvas.width / 2, 210);
+                ctx.shadowBlur = 0;
+
+                if (cancelled) return;
+
+                // Load only unlocked card images
+                const cardImages = [];
+                const imagePromises = unlockedCardIndices.map((cardIndex) => {
+                    return new Promise((resolve) => {
+                        const img = new Image();
+                        img.crossOrigin = "anonymous";
+                        img.onload = () => {
+                            cardImages.push({ index: cardIndex, img: img });
+                            resolve();
+                        };
+                        img.onerror = () => {
+                            console.warn(`Failed to load card ${cardIndex}`);
+                            resolve();
+                        };
+                        img.src = tarotCards[cardIndex].image;
+                        setTimeout(() => resolve(), 10000); // 10s timeout
+                    });
                 });
 
-                // Restore buttons
-                if (actions) actions.style.display = originalDisplay;
+                await Promise.all(imagePromises);
+
+                if (cancelled) return;
+
+                // Calculate grid layout (square cards)
+                let cols, cardSize, gap;
+                if (numUnlocked === 1) {
+                    cols = 1;
+                    cardSize = 400; // Same size as single card save
+                    gap = 0;
+                } else if (numUnlocked <= 4) {
+                    cols = 2;
+                    cardSize = 250;
+                    gap = 40;
+                } else if (numUnlocked <= 9) {
+                    cols = 3;
+                    cardSize = 180;
+                    gap = 30;
+                } else {
+                    cols = 4;
+                    cardSize = 140;
+                    gap = 25;
+                }
+
+                const rows = Math.ceil(numUnlocked / cols);
+                const gridWidth = cols * cardSize + (cols - 1) * gap;
+                const gridHeight = rows * cardSize + (rows - 1) * gap;
+                const startX = (canvas.width - gridWidth) / 2;
+                const startY = 280; // Below title/subtitle
+
+                // Draw cards in grid (all square, center-cropped, with names)
+                for (let i = 0; i < cardImages.length; i++) {
+                    if (cancelled) return;
+
+                    const cardData = cardImages[i];
+                    if (!cardData || !cardData.img || !cardData.img.complete) continue;
+
+                    const col = i % cols;
+                    const row = Math.floor(i / cols);
+                    const x = startX + col * (cardSize + gap);
+                    const y = startY + row * (cardSize + gap);
+
+                    const cardImg = cardData.img;
+                    const card = tarotCards[cardData.index];
+
+                    // Calculate center-crop dimensions to fill square
+                    const imgAspect = cardImg.naturalWidth / cardImg.naturalHeight;
+                    let drawWidth, drawHeight, drawX, drawY;
+
+                    if (imgAspect > 1) {
+                        // Wider image - fit height, crop width
+                        drawHeight = cardSize;
+                        drawWidth = cardSize * imgAspect;
+                        drawX = x - (drawWidth - cardSize) / 2;
+                        drawY = y;
+                    } else {
+                        // Taller image - fit width, crop height
+                        drawWidth = cardSize;
+                        drawHeight = cardSize / imgAspect;
+                        drawX = x;
+                        drawY = y - (drawHeight - cardSize) / 2;
+                    }
+
+                    const borderRadius = Math.max(8, cardSize / 20);
+
+                    // Triple-layer glow (purple → gold → bright gold)
+                    ctx.strokeStyle = 'rgba(193, 84, 193, 0.8)';
+                    ctx.lineWidth = Math.max(4, cardSize / 35);
+                    ctx.shadowColor = 'rgba(193, 84, 193, 0.9)';
+                    ctx.shadowBlur = Math.max(15, cardSize / 10);
+                    roundRect(ctx, x - 3, y - 3, cardSize + 6, cardSize + 6, borderRadius);
+                    ctx.stroke();
+
+                    ctx.strokeStyle = 'rgba(212, 175, 55, 0.9)';
+                    ctx.lineWidth = Math.max(3, cardSize / 45);
+                    ctx.shadowColor = 'rgba(212, 175, 55, 1)';
+                    ctx.shadowBlur = Math.max(12, cardSize / 12);
+                    roundRect(ctx, x - 3, y - 3, cardSize + 6, cardSize + 6, borderRadius);
+                    ctx.stroke();
+
+                    ctx.strokeStyle = '#e8c551';
+                    ctx.lineWidth = Math.max(2, cardSize / 60);
+                    ctx.shadowBlur = Math.max(8, cardSize / 18);
+                    roundRect(ctx, x - 3, y - 3, cardSize + 6, cardSize + 6, borderRadius);
+                    ctx.stroke();
+
+                    ctx.shadowBlur = 0;
+
+                    // Clip and draw square image
+                    ctx.save();
+                    roundRect(ctx, x, y, cardSize, cardSize, borderRadius);
+                    ctx.clip();
+                    ctx.drawImage(cardImg, drawX, drawY, drawWidth, drawHeight);
+                    ctx.restore();
+
+                    // Draw card name below the image
+                    const nameFontSize = Math.max(10, cardSize / 15);
+                    ctx.font = `bold ${nameFontSize}px "Noto Serif TC", serif`;
+                    ctx.fillStyle = '#e8c551';
+                    ctx.textAlign = 'center';
+                    ctx.shadowColor = 'rgba(212, 175, 55, 0.8)';
+                    ctx.shadowBlur = 8;
+
+                    // Get card name without HTML tags
+                    const cleanName = card.name.replace(/<[^>]*>/g, '');
+
+                    // For smaller cards, show abbreviated name
+                    let displayName = cleanName;
+                    if (cardSize < 200) {
+                        // Just show card number and first few characters
+                        const parts = cleanName.split(' ');
+                        displayName = parts[0]; // Just the number like "00"
+                    }
+
+                    ctx.fillText(displayName, x + cardSize / 2, y + cardSize + nameFontSize + 8);
+                    ctx.shadowBlur = 0;
+                }
+
+                if (cancelled) return;
+
+                // Draw footer using shared helper
+                drawFooter(ctx, canvas);
+
+                // Draw QR code using shared helper
+                await drawQRCode(ctx, canvas);
+
+                if (cancelled) return;
 
                 // Convert to blob and download
                 canvas.toBlob((blob) => {
-                    if (blob) {
-                        const url = URL.createObjectURL(blob);
-                        const link = document.createElement('a');
-                        link.download = `tarot-collection-${Date.now()}.png`;
-                        link.href = url;
-                        link.click();
-                        URL.revokeObjectURL(url);
+                    if (cancelled) return;
 
-                        hideLoading();
-                        showCustomAlert(currentLanguage === 'zh' ? '✅ 已儲存圖鑑！' : '✅ Collection saved!');
+                    if (blob) {
+                        try {
+                            const url = URL.createObjectURL(blob);
+                            const link = document.createElement('a');
+                            link.download = `暉日塔羅圖鑑-${Date.now()}.png`;
+                            link.href = url;
+                            link.click();
+                            URL.revokeObjectURL(url);
+
+                            hideLoading();
+                            showCustomAlert(currentLanguage === 'zh' ? '✅ 已儲存圖鑑！' : '✅ Collection saved!');
+                        } catch (err) {
+                            console.error('Error creating download link:', err);
+                            hideLoading();
+                            showRetryAlert(
+                                currentLanguage === 'zh' ? '❌ 圖鑑下載失敗，請重試' : '❌ Failed to download collection, please try again',
+                                saveGalleryCollection
+                            );
+                        }
                     } else {
                         hideLoading();
-                        showCustomAlert(currentLanguage === 'zh' ? '❌ 儲存失敗，請重試' : '❌ Save failed, please try again');
+                        showRetryAlert(
+                            currentLanguage === 'zh' ? '❌ 圖鑑生成失敗，請重試' : '❌ Failed to generate collection, please try again',
+                            saveGalleryCollection
+                        );
                     }
                 }, 'image/png');
 
             } catch (error) {
                 console.error('Error saving collection:', error);
                 hideLoading();
-                showCustomAlert(currentLanguage === 'zh' ? '❌ 儲存失敗，請重試' : '❌ Save failed, please try again');
+                showRetryAlert(
+                    currentLanguage === 'zh' ? '❌ 圖鑑生成失敗，請重試' : '❌ Failed to generate collection, please try again',
+                    saveGalleryCollection
+                );
             }
         }
 
@@ -3004,17 +3203,27 @@
                 grid.appendChild(cardDiv);
             });
 
-            // Add action buttons if all unlocked
+            // Add action buttons - always show save button, replay button only when all unlocked
             let actionsDiv = container.querySelector('.gallery-actions');
-            if (allUnlocked && !actionsDiv) {
-                actionsDiv = document.createElement('div');
-                actionsDiv.className = 'gallery-actions';
-                actionsDiv.innerHTML = `
-                    <button class="btn" onclick="replayCelebration()">${lang.btnReplayAnimation}</button>
-                    <button class="btn" onclick="saveGalleryCollection()">${lang.btnSaveCollection}</button>
-                `;
-                container.appendChild(actionsDiv);
-            } else if (!allUnlocked && actionsDiv) {
+            if (unlockedCount > 0) {
+                if (!actionsDiv) {
+                    actionsDiv = document.createElement('div');
+                    actionsDiv.className = 'gallery-actions';
+                    container.appendChild(actionsDiv);
+                }
+
+                // Update buttons based on unlock state
+                if (allUnlocked) {
+                    actionsDiv.innerHTML = `
+                        <button class="btn" onclick="replayCelebration()">${lang.btnReplayAnimation}</button>
+                        <button class="btn" onclick="saveGalleryCollection()">${lang.btnSaveCollection}</button>
+                    `;
+                } else {
+                    actionsDiv.innerHTML = `
+                        <button class="btn" onclick="saveGalleryCollection()">${lang.btnSaveCollection}</button>
+                    `;
+                }
+            } else if (actionsDiv) {
                 actionsDiv.remove();
             }
 
@@ -3138,55 +3347,26 @@
             }
         });
 
-        // Show loading indicator
-        function showLoading(message) {
-            const loadingDiv = document.createElement('div');
-            loadingDiv.className = 'loading-overlay';
-            loadingDiv.id = 'loading-indicator';
-            loadingDiv.innerHTML = `
-                <div class="loading-stars">
-                    <div class="loading-star"></div>
-                    <div class="loading-star"></div>
-                    <div class="loading-star"></div>
-                    <div class="loading-star"></div>
-                    <div class="loading-star"></div>
-                </div>
-                <div class="loading-text">${message || (currentLanguage === 'zh' ? '正在生成圖片...' : 'Generating image...')}</div>
-            `;
-            document.body.appendChild(loadingDiv);
-            return loadingDiv;
+        // ==================== SHARED IMAGE GENERATION HELPERS ====================
+
+        // Helper function for rounded rectangles
+        function roundRect(ctx, x, y, width, height, radius) {
+            ctx.beginPath();
+            ctx.moveTo(x + radius, y);
+            ctx.lineTo(x + width - radius, y);
+            ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+            ctx.lineTo(x + width, y + height - radius);
+            ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+            ctx.lineTo(x + radius, y + height);
+            ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+            ctx.lineTo(x, y + radius);
+            ctx.quadraticCurveTo(x, y, x + radius, y);
+            ctx.closePath();
         }
 
-        // Hide loading indicator
-        function hideLoading() {
-            const loadingDiv = document.getElementById('loading-indicator');
-            if (loadingDiv) {
-                loadingDiv.remove();
-            }
-        }
-
-        // Save result - generate shareable image
-        async function saveResult() {
-            playButtonSound();
-            if (currentResultIndex === null) return;
-
-            const result = tarotCards[currentResultIndex];
-            const lang = currentLanguage;
-
-            // Show loading indicator
-            const loading = showLoading(lang === 'zh' ? '✨ 正在生成圖片...' : '✨ Generating image...');
-
-            // Use setTimeout to allow loading UI to render
-            await new Promise(resolve => setTimeout(resolve, 50));
-
-            try {
-                // Create canvas
-            const canvas = document.createElement('canvas');
-            canvas.width = 1200;
-            canvas.height = 1600;
-            const ctx = canvas.getContext('2d');
-
-            // Purple starry background - darker at top/bottom, lighter in center
+        // Draw starry background
+        function drawStarryBackground(ctx, canvas) {
+            // Purple gradient background
             const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
             gradient.addColorStop(0, '#1a0d2e');
             gradient.addColorStop(0.5, '#6a0572');
@@ -3194,7 +3374,7 @@
             ctx.fillStyle = gradient;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Draw stars in background
+            // White stars
             ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
             for (let i = 0; i < 80; i++) {
                 const x = Math.random() * canvas.width;
@@ -3205,41 +3385,42 @@
                 ctx.fill();
             }
 
-        // Medium gold stars
-        ctx.fillStyle = 'rgba(212, 175, 55, 0.8)';
-        for (let i = 0; i < 30; i++) {
-            const x = Math.random() * canvas.width;
-            const y = Math.random() * canvas.height;
-            const size = Math.random() * 2.5 + 1.5;
-            ctx.beginPath();
-            ctx.arc(x, y, size, 0, Math.PI * 2);
-            ctx.fill();
+            // Gold stars
+            ctx.fillStyle = 'rgba(212, 175, 55, 0.8)';
+            for (let i = 0; i < 30; i++) {
+                const x = Math.random() * canvas.width;
+                const y = Math.random() * canvas.height;
+                const size = Math.random() * 2.5 + 1.5;
+                ctx.beginPath();
+                ctx.arc(x, y, size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Purple/mystical stars
+            ctx.fillStyle = 'rgba(193, 84, 193, 0.7)';
+            for (let i = 0; i < 25; i++) {
+                const x = Math.random() * canvas.width;
+                const y = Math.random() * canvas.height;
+                const size = Math.random() * 1.5 + 1;
+                ctx.beginPath();
+                ctx.arc(x, y, size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Tiny stars (star dust)
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+            for (let i = 0; i < 40; i++) {
+                const x = Math.random() * canvas.width;
+                const y = Math.random() * canvas.height;
+                const size = Math.random() * 1 + 0.5;
+                ctx.beginPath();
+                ctx.arc(x, y, size, 0, Math.PI * 2);
+                ctx.fill();
+            }
         }
 
-
-        // Small purple/mystical stars
-        ctx.fillStyle = 'rgba(193, 84, 193, 0.7)';
-        for (let i = 0; i < 25; i++) {
-            const x = Math.random() * canvas.width;
-            const y = Math.random() * canvas.height;
-            const size = Math.random() * 1.5 + 1;
-            ctx.beginPath();
-            ctx.arc(x, y, size, 0, Math.PI * 2);
-            ctx.fill();
-        }
-
-        // Tiny stars (star dust)
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-        for (let i = 0; i < 40; i++) {
-            const x = Math.random() * canvas.width;
-            const y = Math.random() * canvas.height;
-            const size = Math.random() * 1 + 0.5;
-            ctx.beginPath();
-            ctx.arc(x, y, size, 0, Math.PI * 2);
-            ctx.fill();
-        }
-
-            // Draw decorative stars (larger)
+        // Draw decorative stars
+        function drawDecorativeStars(ctx, canvas) {
             const drawStar = (x, y, size, color, points = 4) => {
                 ctx.save();
                 ctx.translate(x, y);
@@ -3263,28 +3444,227 @@
 
             // Decorative stars around the canvas
             drawStar(50, 50, 20, '#d4af37');
-            drawStar(1150, 50, 15, '#c154c1');
+            drawStar(canvas.width - 50, 50, 15, '#c154c1');
             drawStar(200, 520, 12, '#d4af37');
-            drawStar(1000, 520, 12, '#d4af37');
+            drawStar(canvas.width - 200, 520, 12, '#d4af37');
             drawStar(80, 840, 12, '#c154c1');
-            drawStar(1120, 840, 12, '#c154c1');
+            drawStar(canvas.width - 80, 840, 12, '#c154c1');
             drawStar(200, 750, 10, '#d4af37');
-            drawStar(1000, 750, 10, '#d4af37');
+            drawStar(canvas.width - 200, 750, 10, '#d4af37');
+        }
+
+        // Draw QR code
+        async function drawQRCode(ctx, canvas) {
+            try {
+                const qrContainer = document.createElement('div');
+                qrContainer.style.position = 'absolute';
+                qrContainer.style.left = '-9999px';
+                document.body.appendChild(qrContainer);
+
+                const qrCode = new QRCode(qrContainer, {
+                    text: 'https://www.threads.com/@grafittiii_uru/post/DQ8z1FUEYiO',
+                    width: 120,
+                    height: 120,
+                    colorDark: '#000000',
+                    colorLight: '#ffffff',
+                    correctLevel: QRCode.CorrectLevel.H
+                });
+
+                await new Promise(resolve => setTimeout(resolve, 100));
+
+                const qrImg = qrContainer.querySelector('img');
+                if (qrImg && qrImg.complete) {
+                    const qrSize = 150;
+                    const qrPadding = 15;
+                    const qrX = canvas.width - qrSize - 30;
+                    const qrY = canvas.height - qrSize - 30;
+                    const qrRadius = 10;
+
+                    // Outer purple glow
+                    ctx.strokeStyle = 'rgba(193, 84, 193, 0.5)';
+                    ctx.lineWidth = 4;
+                    ctx.shadowColor = 'rgba(193, 84, 193, 0.6)';
+                    ctx.shadowBlur = 40;
+                    roundRect(ctx, qrX, qrY, qrSize, qrSize, qrRadius);
+                    ctx.stroke();
+
+                    // Inner gold glow
+                    ctx.strokeStyle = 'rgba(212, 175, 55, 0.6)';
+                    ctx.lineWidth = 3;
+                    ctx.shadowColor = 'rgba(212, 175, 55, 0.8)';
+                    ctx.shadowBlur = 15;
+                    roundRect(ctx, qrX, qrY, qrSize, qrSize, qrRadius);
+                    ctx.stroke();
+
+                    // White background
+                    ctx.fillStyle = 'white';
+                    ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+                    ctx.shadowBlur = 10;
+                    roundRect(ctx, qrX, qrY, qrSize, qrSize, qrRadius);
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+
+                    // Draw QR image
+                    ctx.save();
+                    roundRect(ctx, qrX + qrPadding, qrY + qrPadding, qrSize - qrPadding * 2, qrSize - qrPadding * 2, qrRadius - 5);
+                    ctx.clip();
+                    ctx.drawImage(qrImg, qrX + qrPadding, qrY + qrPadding, qrSize - qrPadding * 2, qrSize - qrPadding * 2);
+                    ctx.restore();
+                }
+
+                document.body.removeChild(qrContainer);
+            } catch (error) {
+                console.error('QR code generation failed:', error);
+            }
+        }
+
+        // Draw footer text
+        function drawFooter(ctx, canvas) {
+            const footerY = canvas.height - 45;
+            ctx.fillStyle = '#c154c1';
+            ctx.font = 'bold 28px "Noto Serif TC", serif';
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = 'rgba(193, 84, 193, 0.8)';
+            ctx.textAlign = 'center';
+            ctx.fillText('暉日塔羅 大阿爾克那 MascotTarot Major Arcana', canvas.width / 2, footerY);
+            ctx.shadowBlur = 0;
+        }
+
+        // Draw card image with glowing border (square or custom dimensions)
+        function drawCardImageWithGlow(ctx, cardImg, x, y, width, height, borderRadius) {
+            const borderPadding = 10;
+
+            // Outer glow - purple/mystical
+            ctx.strokeStyle = 'rgba(193, 84, 193, 0.3)';
+            ctx.lineWidth = 12;
+            ctx.shadowColor = 'rgba(193, 84, 193, 0.3)';
+            ctx.shadowBlur = 60;
+            roundRect(ctx, x - borderPadding, y - borderPadding, width + borderPadding * 2, height + borderPadding * 2, borderRadius);
+            ctx.stroke();
+
+            // Middle glow - gold
+            ctx.strokeStyle = 'rgba(212, 175, 55, 0.5)';
+            ctx.lineWidth = 10;
+            ctx.shadowColor = 'rgba(212, 175, 55, 0.5)';
+            ctx.shadowBlur = 40;
+            roundRect(ctx, x - borderPadding, y - borderPadding, width + borderPadding * 2, height + borderPadding * 2, borderRadius);
+            ctx.stroke();
+
+            // Inner border - solid gold
+            ctx.strokeStyle = '#d4af37';
+            ctx.lineWidth = 6;
+            ctx.shadowColor = 'rgba(212, 175, 55, 0.5)';
+            ctx.shadowBlur = 20;
+            roundRect(ctx, x - borderPadding, y - borderPadding, width + borderPadding * 2, height + borderPadding * 2, borderRadius);
+            ctx.stroke();
+
+            // Reset shadow
+            ctx.shadowBlur = 0;
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 0;
+
+            // Clip and draw image
+            ctx.save();
+            roundRect(ctx, x, y, width, height, borderRadius);
+            ctx.clip();
+            ctx.drawImage(cardImg, x, y, width, height);
+            ctx.restore();
+        }
+
+        // Show loading indicator with optional cancel button
+        function showLoading(message, onCancel = null) {
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'loading-overlay';
+            loadingDiv.id = 'loading-indicator';
+
+            const cancelBtn = onCancel ? `
+                <button class="btn" onclick="(${onCancel.toString()})()" style="margin-top: 20px; padding: 8px 16px; font-size: 0.9em;">
+                    ${currentLanguage === 'zh' ? '取消' : 'Cancel'}
+                </button>
+            ` : '';
+
+            loadingDiv.innerHTML = `
+                <div class="loading-stars">
+                    <div class="loading-star"></div>
+                    <div class="loading-star"></div>
+                    <div class="loading-star"></div>
+                    <div class="loading-star"></div>
+                    <div class="loading-star"></div>
+                </div>
+                <div class="loading-text">${message || (currentLanguage === 'zh' ? '正在生成圖片...' : 'Generating image...')}</div>
+                ${cancelBtn}
+            `;
+            document.body.appendChild(loadingDiv);
+            return loadingDiv;
+        }
+
+        // Hide loading indicator
+        function hideLoading() {
+            const loadingDiv = document.getElementById('loading-indicator');
+            if (loadingDiv) {
+                loadingDiv.remove();
+            }
+        }
+
+        // Save result - generate shareable image
+        async function saveResult() {
+            playButtonSound();
+            if (currentResultIndex === null) return;
+
+            const result = tarotCards[currentResultIndex];
+            const lang = currentLanguage;
+
+            // Show loading indicator with cancel option
+            let cancelled = false;
+            const cancelFunc = () => {
+                cancelled = true;
+                hideLoading();
+            };
+            const loading = showLoading(lang === 'zh' ? '✨ 正在生成圖片...' : '✨ Generating image...', cancelFunc);
+
+            // Use setTimeout to allow loading UI to render
+            await new Promise(resolve => setTimeout(resolve, 50));
+
+            try {
+                if (cancelled) return;
+
+                // Create canvas
+                const canvas = document.createElement('canvas');
+                canvas.width = 1200;
+                canvas.height = 1600;
+                const ctx = canvas.getContext('2d');
+
+                // Draw starry background using shared helper
+                drawStarryBackground(ctx, canvas);
+
+                // Draw decorative stars using shared helper
+                drawDecorativeStars(ctx, canvas);
 
         // Load and draw the tarot card image
         const cardImage = new Image();
         cardImage.crossOrigin = "anonymous";
 
+        let imageLoadError = false;
         await new Promise((resolve, reject) => {
             cardImage.onload = () => resolve();
-            cardImage.onerror = () => {
-                console.warn('Failed to load card image, continuing without it');
+            cardImage.onerror = (error) => {
+                console.warn('Failed to load card image:', error);
+                imageLoadError = true;
                 resolve();
             };
             cardImage.src = result.image;
-            // Timeout after 10 seconds
-            setTimeout(() => resolve(), 10000);
+            // Timeout after 15 seconds
+            setTimeout(() => {
+                if (!cardImage.complete || cardImage.naturalHeight === 0) {
+                    console.warn('Image load timeout');
+                    imageLoadError = true;
+                }
+                resolve();
+            }, 15000);
         });
+
+        // Check if cancelled during image load
+        if (cancelled) return;
 
        // Draw decorative top symbols (more space at top)
         ctx.textAlign = 'center';
@@ -3315,65 +3695,15 @@
 
     // Draw card image if loaded (moved down together with heading and name)
         let imageEndY = 380;
-        if (cardImage.complete && cardImage.naturalHeight !== 0) {
-            const imgWidth = 400; // Reduced from 600 to 400 (33% reduction)
+        if (!imageLoadError && cardImage.complete && cardImage.naturalHeight !== 0) {
+            const imgWidth = 400;
             const imgHeight = (cardImage.naturalHeight / cardImage.naturalWidth) * imgWidth;
             const imgX = (canvas.width - imgWidth) / 2;
             const imgY = 380;
             const borderRadius = 15;
-            const borderPadding = 10;
 
-            // Helper function to draw rounded rectangle path
-            function roundRect(ctx, x, y, width, height, radius) {
-                ctx.beginPath();
-                ctx.moveTo(x + radius, y);
-                ctx.lineTo(x + width - radius, y);
-                ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
-                ctx.lineTo(x + width, y + height - radius);
-                ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-                ctx.lineTo(x + radius, y + height);
-                ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
-                ctx.lineTo(x, y + radius);
-                ctx.quadraticCurveTo(x, y, x + radius, y);
-                ctx.closePath();
-            }
-
-            // Draw glowing border with multiple layers - matching result page
-            // Outer glow - purple/mystical (matching box-shadow: 0 0 60px rgba(193, 84, 193, 0.3))
-            ctx.strokeStyle = 'rgba(193, 84, 193, 0.3)';
-            ctx.lineWidth = 12;
-            ctx.shadowColor = 'rgba(193, 84, 193, 0.3)';
-            ctx.shadowBlur = 60;
-            roundRect(ctx, imgX - borderPadding, imgY - borderPadding, imgWidth + borderPadding * 2, imgHeight + borderPadding * 2, borderRadius);
-            ctx.stroke();
-
-            // Middle glow - gold (matching box-shadow: 0 0 40px rgba(212, 175, 55, 0.5))
-            ctx.strokeStyle = 'rgba(212, 175, 55, 0.5)';
-            ctx.lineWidth = 10;
-            ctx.shadowColor = 'rgba(212, 175, 55, 0.5)';
-            ctx.shadowBlur = 40;
-            roundRect(ctx, imgX - borderPadding, imgY - borderPadding, imgWidth + borderPadding * 2, imgHeight + borderPadding * 2, borderRadius);
-            ctx.stroke();
-
-            // Inner border - solid gold (matching border: 3px solid var(--color-secondary))
-            ctx.strokeStyle = '#d4af37';
-            ctx.lineWidth = 6;
-            ctx.shadowColor = 'rgba(212, 175, 55, 0.5)';
-            ctx.shadowBlur = 20;
-            roundRect(ctx, imgX - borderPadding, imgY - borderPadding, imgWidth + borderPadding * 2, imgHeight + borderPadding * 2, borderRadius);
-            ctx.stroke();
-
-            // Reset shadow for image
-            ctx.shadowBlur = 0;
-            ctx.shadowOffsetX = 0;
-            ctx.shadowOffsetY = 0;
-
-            // Clip and draw image with rounded corners
-            ctx.save();
-            roundRect(ctx, imgX, imgY, imgWidth, imgHeight, borderRadius);
-            ctx.clip();
-            ctx.drawImage(cardImage, imgX, imgY, imgWidth, imgHeight);
-            ctx.restore();
+            // Draw card with glowing border using shared helper
+            drawCardImageWithGlow(ctx, cardImage, imgX, imgY, imgWidth, imgHeight, borderRadius);
 
             // Add decorative mystical symbols around the image
             ctx.fillStyle = '#d4af37';
@@ -3499,122 +3829,68 @@
             ctx.shadowColor = 'rgba(212, 175, 55, 0.8)';
             ctx.fillText('◆ ☆ ◇', canvas.width / 2, symbolsY);
 
-            // Footer text
-            ctx.fillStyle = '#c154c1';
-            ctx.font = 'bold 28px "Noto Serif TC", serif';
-            ctx.shadowBlur = 15;
-            ctx.shadowColor = 'rgba(193, 84, 193, 0.8)';
-            ctx.fillText('暉日塔羅 大阿爾克那 MascotTarot Major Arcana', canvas.width / 2, footerTextY);
+            // Draw footer using shared helper
+            drawFooter(ctx, canvas);
 
-            // QR Code (generate with current page URL)
-            try {
-                const qrContainer = document.createElement('div');
-                qrContainer.style.position = 'absolute';
-                qrContainer.style.left = '-9999px';
-                document.body.appendChild(qrContainer);
+            // Draw QR code using shared helper
+            await drawQRCode(ctx, canvas);
 
-                const qrCode = new QRCode(qrContainer, {
-                    text: 'https://www.threads.com/@grafittiii_uru/post/DQ8z1FUEYiO',
-                    width: 120,
-                    height: 120,
-                    colorDark: '#000000',
-                    colorLight: '#ffffff',
-                    correctLevel: QRCode.CorrectLevel.H
-                });
-
-                // Wait a bit for QR to generate
-                await new Promise(resolve => setTimeout(resolve, 100));
-
-                const qrImg = qrContainer.querySelector('img');
-                if (qrImg && qrImg.complete) {
-                    const qrSize = 150;
-                    const qrPadding = 15;
-                    const qrX = canvas.width - qrSize - 30;
-                    const qrY = canvas.height - qrSize - 30;
-                    const qrRadius = 10;
-
-                    // Helper for QR rounded rect
-                    function roundRectQR(ctx, x, y, width, height, radius) {
-                        ctx.beginPath();
-                        ctx.moveTo(x + radius, y);
-                        ctx.lineTo(x + width - radius, y);
-                        ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
-                        ctx.lineTo(x + width, y + height - radius);
-                        ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-                        ctx.lineTo(x + radius, y + height);
-                        ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
-                        ctx.lineTo(x, y + radius);
-                        ctx.quadraticCurveTo(x, y, x + radius, y);
-                        ctx.closePath();
-                    }
-
-                    // Draw glowing border for QR box
-                    // Outer purple glow
-                    ctx.strokeStyle = 'rgba(193, 84, 193, 0.5)';
-                    ctx.lineWidth = 4;
-                    ctx.shadowColor = 'rgba(193, 84, 193, 0.6)';
-                    ctx.shadowBlur = 40;
-                    roundRectQR(ctx, qrX, qrY, qrSize, qrSize, qrRadius);
-                    ctx.stroke();
-
-                    // Inner gold glow
-                    ctx.strokeStyle = 'rgba(212, 175, 55, 0.6)';
-                    ctx.lineWidth = 3;
-                    ctx.shadowColor = 'rgba(212, 175, 55, 0.8)';
-                    ctx.shadowBlur = 15;
-                    roundRectQR(ctx, qrX, qrY, qrSize, qrSize, qrRadius);
-                    ctx.stroke();
-
-                    // Draw white background with rounded corners
-                    ctx.fillStyle = 'white';
-                    ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
-                    ctx.shadowBlur = 10;
-                    roundRectQR(ctx, qrX, qrY, qrSize, qrSize, qrRadius);
-                    ctx.fill();
-                    ctx.shadowBlur = 0;
-
-                    // Draw QR image
-                    ctx.save();
-                    roundRectQR(ctx, qrX + qrPadding, qrY + qrPadding, qrSize - qrPadding * 2, qrSize - qrPadding * 2, qrRadius - 5);
-                    ctx.clip();
-                    ctx.drawImage(qrImg, qrX + qrPadding, qrY + qrPadding, qrSize - qrPadding * 2, qrSize - qrPadding * 2);
-                    ctx.restore();
-                }
-
-                document.body.removeChild(qrContainer);
-            } catch (error) {
-                console.error('QR code generation failed:', error);
-            }
+                // Check if cancelled before blob conversion
+                if (cancelled) return;
 
                 // Convert canvas to blob and download
                 canvas.toBlob((blob) => {
+                    if (cancelled) return;
+
                     if (blob) {
-                        const url = URL.createObjectURL(blob);
-                        const link = document.createElement('a');
+                        try {
+                            const url = URL.createObjectURL(blob);
+                            const link = document.createElement('a');
 
-                        // Extract card number and English name
-                        const cardNumber = cleanName.split(' ')[0];
-                        // Extract English name from parentheses
-                        const enNameMatch = result.name.match(/\(([^)]+)\)/);
-                        const enName = enNameMatch ? enNameMatch[1] : '';
+                            // Extract card number and English name
+                            const cardNumber = cleanName.split(' ')[0];
+                            // Extract English name from parentheses
+                            const enNameMatch = result.name.match(/\(([^)]+)\)/);
+                            const enName = enNameMatch ? enNameMatch[1] : '';
 
-                        // Filename format: 暉日塔羅(card number) (card English name)
-                        link.download = `暉日塔羅${cardNumber} ${enName}.png`;
-                        link.href = url;
-                        link.click();
-                        URL.revokeObjectURL(url);
+                            // Filename format: 暉日塔羅(card number) (card English name)
+                            link.download = `暉日塔羅${cardNumber} ${enName}.png`;
+                            link.href = url;
+                            link.click();
+                            URL.revokeObjectURL(url);
 
-                        hideLoading();
-                        showCustomAlert(lang === 'zh' ? '✅ 圖片已儲存！' : '✅ Image saved!');
+                            hideLoading();
+
+                            if (imageLoadError) {
+                                showCustomAlert(lang === 'zh'
+                                    ? '⚠️ 圖片已儲存，但塔羅牌圖片載入失敗'
+                                    : '⚠️ Image saved, but card image failed to load');
+                            } else {
+                                showCustomAlert(lang === 'zh' ? '✅ 圖片已儲存！' : '✅ Image saved!');
+                            }
+                        } catch (err) {
+                            console.error('Error creating download link:', err);
+                            hideLoading();
+                            showRetryAlert(
+                                lang === 'zh' ? '❌ 圖片下載失敗，請重試' : '❌ Failed to download image, please try again',
+                                saveResult
+                            );
+                        }
                     } else {
                         hideLoading();
-                        showCustomAlert(lang === 'zh' ? '❌ 圖片生成失敗' : '❌ Failed to generate image');
+                        showRetryAlert(
+                            lang === 'zh' ? '❌ 圖片生成失敗，請重試' : '❌ Failed to generate image, please try again',
+                            saveResult
+                        );
                     }
                 }, 'image/png');
             } catch (error) {
                 console.error('Error generating image:', error);
                 hideLoading();
-                showCustomAlert(lang === 'zh' ? '❌ 圖片生成失敗' : '❌ Failed to generate image');
+                showRetryAlert(
+                    lang === 'zh' ? '❌ 圖片生成失敗，請重試' : '❌ Failed to generate image, please try again',
+                    saveResult
+                );
             }
         }
 
@@ -3626,29 +3902,45 @@
             const SHARE_LINK = 'https://grafittiii-hub.github.io/MascotTarotQuiz/';
             // ==================================================
 
-            const finalCard = tarotCards[totalScore % 22];
-            // Remove HTML tags from card name for sharing
-            const cardNameText = finalCard.name.replace(/<[^>]*>/g, '');
-            const shareText = currentLanguage === 'zh'
-                ? `🔮 我的專屬啟示是【${cardNameText}】!\n\n來試試你的專屬塔羅啟示: ${SHARE_LINK}`
-                : `🔮 My personal revelation is【${cardNameText}】!\n\nTry your own tarot revelation: ${SHARE_LINK}`;
+            try {
+                const finalCard = tarotCards[totalScore % 22];
+                // Remove HTML tags from card name for sharing
+                const cardNameText = finalCard.name.replace(/<[^>]*>/g, '');
+                const shareText = currentLanguage === 'zh'
+                    ? `🔮 我的專屬啟示是【${cardNameText}】!\n\n來試試你的專屬塔羅啟示: ${SHARE_LINK}`
+                    : `🔮 My personal revelation is【${cardNameText}】!\n\nTry your own tarot revelation: ${SHARE_LINK}`;
 
-            if (navigator.share) {
-                try {
-                    await navigator.share({
-                        title: currentLanguage === 'zh' ? '我的塔羅心靈啟示' : 'My Tarot Revelation',
-                        text: shareText
-                    });
-                } catch (error) {
-                    if (error.name !== 'AbortError') {
-                        console.error('Share failed:', error);
+                if (navigator.share) {
+                    try {
+                        await navigator.share({
+                            title: currentLanguage === 'zh' ? '我的塔羅心靈啟示' : 'My Tarot Revelation',
+                            text: shareText
+                        });
+                    } catch (error) {
+                        if (error.name !== 'AbortError') {
+                            console.error('Share failed:', error);
+                            // Fallback to clipboard on share error
+                            try {
+                                await navigator.clipboard.writeText(shareText);
+                                showCustomAlert(currentLanguage === 'zh' ? '✅ 分享失敗，已複製連結到剪貼簿' : '✅ Share failed, link copied to clipboard');
+                            } catch (clipErr) {
+                                showCustomAlert(currentLanguage === 'zh' ? '❌ 分享失敗' : '❌ Share failed');
+                            }
+                        }
+                    }
+                } else {
+                    // Fallback: copy to clipboard
+                    try {
+                        await navigator.clipboard.writeText(shareText);
+                        showCustomAlert(currentLanguage === 'zh' ? '✅ 連結已複製到剪貼簿!' : '✅ Link copied to clipboard!');
+                    } catch (error) {
+                        console.error('Clipboard write failed:', error);
+                        showCustomAlert(currentLanguage === 'zh' ? '❌ 複製失敗' : '❌ Copy failed');
                     }
                 }
-            } else {
-                // Fallback: copy to clipboard
-                navigator.clipboard.writeText(shareText).then(() => {
-                    showCustomAlert(currentLanguage === 'zh' ? '✅ 連結已複製到剪貼簿!' : '✅ Link copied to clipboard!');
-                });
+            } catch (error) {
+                console.error('Unexpected error in shareResult:', error);
+                showCustomAlert(currentLanguage === 'zh' ? '❌ 分享失敗' : '❌ Share failed');
             }
         }
 
@@ -3660,6 +3952,26 @@
                 <div style="background: var(--color-primary); padding: 30px; border-radius: 10px; box-shadow: 0 0 40px rgba(212, 175, 55, 0.5); max-width: 400px; width: 90%; margin: 20px; border: 2px solid var(--color-secondary); text-align: center;">
                     <p style="color: var(--color-text-light); margin-bottom: 20px; white-space: pre-line; line-height: 1.6;">${message}</p>
                     <button class="btn" onclick="this.closest('div').parentElement.remove()">${currentLanguage === 'zh' ? '確定' : 'OK'}</button>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        // Custom alert with retry option
+        function showRetryAlert(message, retryCallback) {
+            const modal = document.createElement('div');
+            modal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 10000;';
+            modal.innerHTML = `
+                <div style="background: var(--color-primary); padding: 30px; border-radius: 10px; box-shadow: 0 0 40px rgba(212, 175, 55, 0.5); max-width: 400px; width: 90%; margin: 20px; border: 2px solid var(--color-secondary); text-align: center;">
+                    <p style="color: var(--color-text-light); margin-bottom: 20px; white-space: pre-line; line-height: 1.6;">${message}</p>
+                    <div style="display: flex; gap: 10px; justify-content: center;">
+                        <button class="btn" onclick="this.closest('div').parentElement.remove(); (${retryCallback.toString()})()" style="background: var(--color-secondary);">
+                            ${currentLanguage === 'zh' ? '重試' : 'Retry'}
+                        </button>
+                        <button class="btn" onclick="this.closest('div').parentElement.remove()" style="background: rgba(193, 84, 193, 0.8);">
+                            ${currentLanguage === 'zh' ? '取消' : 'Cancel'}
+                        </button>
+                    </div>
                 </div>
             `;
             document.body.appendChild(modal);
