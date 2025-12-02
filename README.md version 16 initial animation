@@ -1399,6 +1399,15 @@
                 line-height: 1.4;
             }
 
+            /* Ensure result title is centered on mobile, not affected by lang-toggle button */
+            #result-title {
+                text-align: center !important;
+                margin-left: auto !important;
+                margin-right: auto !important;
+                padding-left: 0 !important;
+                padding-right: 0 !important;
+            }
+
             .container {
                 padding: 25px 20px;
                 width: 94%;
@@ -1720,13 +1729,14 @@
                 0 0 40px rgba(193, 84, 193, 0.6);
             animation: loadingPulse 1.5s ease-in-out infinite;
             margin-bottom: 25px;
-            transition: all 0.5s ease-out;
+            transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1); /* Smooth bounce effect */
         }
 
         .loading-symbol.ready {
             animation:
                 loadingGlowIntense 1.2s ease-in-out infinite,
-                secretDoorSpin 2.4s linear infinite;
+                secretDoorSpin 2.4s linear 3, /* Spin exactly 3 times, then stop */
+                symbolEnlargeAndFade 1.5s ease-out 7.2s forwards; /* Start enlarging after 3 spins (3 × 2.4s = 7.2s) */
             text-shadow:
                 0 0 60px rgba(212, 175, 55, 1),
                 0 0 120px rgba(193, 84, 193, 1),
@@ -1734,8 +1744,25 @@
                 0 0 240px rgba(193, 84, 193, 0.9),
                 0 0 300px rgba(212, 175, 55, 0.8),
                 0 0 360px rgba(193, 84, 193, 0.6);
-            transform: scale(1.3);
-            filter: brightness(1.3);
+        }
+
+        /* Enlargement and fade-out animation for the final transition */
+        @keyframes symbolEnlargeAndFade {
+            0% {
+                transform: scale(1) rotate(1080deg); /* Start at normal size after 3 spins (3 × 360 = 1080) */
+                opacity: 1;
+                filter: brightness(1.5);
+            }
+            60% {
+                transform: scale(2.2) rotate(1080deg); /* Enlarge dramatically */
+                opacity: 0.9;
+                filter: brightness(2);
+            }
+            100% {
+                transform: scale(3) rotate(1080deg); /* Continue enlarging */
+                opacity: 0; /* Fade out completely */
+                filter: brightness(2.5);
+            }
         }
 
         @keyframes loadingPulse {
@@ -1919,8 +1946,8 @@
     </div>
 
     <div id="result-page" class="container">
-        <div style="margin-bottom: 10px; text-align: center; width: 100%; padding: 0;">
-            <h2 id="result-title" style="margin: 0; font-size: 1.3em; text-align: center; padding: 0; width: 100%;">你的專屬塔羅啟示</h2>
+        <div style="margin-bottom: 10px; text-align: center; width: 100%; padding: 0 0 0 0; box-sizing: border-box;">
+            <h2 id="result-title" style="margin: 0 auto; font-size: 1.3em; text-align: center; padding: 0; width: 100%; display: block; box-sizing: border-box;">你的專屬塔羅啟示</h2>
         </div>
 
         <img id="result-img" src="" alt="Tarot Card Result" loading="eager">
@@ -4472,13 +4499,13 @@
             }
         }
 
-        // Hide loading screen once fonts are loaded
+        // Hide loading screen with coordinated crossfade animation
         function hideLoadingScreen() {
             const loadingScreen = document.getElementById('loading-screen');
             const loadingSymbol = document.getElementById('loading-symbol');
             const progressContainer = document.getElementById('loading-progress-container');
 
-            // Add ready/glow effect to symbol and hide progress bar
+            // Add ready class to start the 3-spin + enlarge + fade animation
             if (loadingSymbol) {
                 loadingSymbol.classList.add('ready');
             }
@@ -4486,21 +4513,28 @@
                 progressContainer.classList.add('hidden');
             }
 
-            // Show enlarged symbol for longer before fading out (increased from 400ms to 1200ms)
+            // Timeline:
+            // 0ms: Animation starts, logo spins
+            // 7200ms: 3 spins complete (2.4s × 3), enlargement begins
+            // 8200ms: Logo is enlarging, start fading in intro page (CROSSFADE BEGINS)
+            // 8700ms: Logo fully faded out, intro page fully visible
+
+            // Start showing intro page while logo is still enlarging (crossfade effect)
+            setTimeout(() => {
+                showPage('intro-page'); // Intro page fades in while logo fades out
+            }, 8200); // Start intro fade-in 500ms before logo fully disappears
+
+            // Remove loading screen after animation completes
             setTimeout(() => {
                 if (loadingScreen) {
-                    loadingScreen.classList.add('fade-out');
-                    // Smoother, longer fade transition (increased from 300ms to 800ms)
-                    setTimeout(() => {
-                        loadingScreen.style.display = 'none';
-                        loadingScreen.style.visibility = 'hidden';
-                        // Remove from DOM entirely to prevent Samsung browser re-showing
-                        if (loadingScreen.parentNode) {
-                            loadingScreen.parentNode.removeChild(loadingScreen);
-                        }
-                    }, 800); // Match the CSS transition duration
+                    loadingScreen.style.display = 'none';
+                    loadingScreen.style.visibility = 'hidden';
+                    // Remove from DOM entirely to prevent Samsung browser re-showing
+                    if (loadingScreen.parentNode) {
+                        loadingScreen.parentNode.removeChild(loadingScreen);
+                    }
                 }
-            }, 1200); // Show glow for 1200ms before fading out
+            }, 8700); // Total animation time: 7.2s (spins) + 1.5s (enlarge/fade) = 8.7s
         }
 
         // Update loading progress bar
@@ -4517,7 +4551,8 @@
             document.documentElement.setAttribute('lang', 'zh-TW');
             document.getElementById('lang-toggle').textContent = 'EN';
 
-            showPage('intro-page');
+            // DON'T show intro page yet - wait for loading screen to finish
+            // showPage('intro-page') is now called AFTER loading screen completes
             checkFileSharing();
 
             let fontsLoaded = false;
@@ -4550,12 +4585,12 @@
             // Start preloading images immediately (non-blocking)
             updateLoadingProgress(30);
             preloadTarotImages();
-            // Mark images as started immediately (they load in background)
+            // Mark images as started after minimum display time for smooth UX
             setTimeout(() => {
                 imagesStarted = true;
                 updateLoadingProgress(80);
                 checkReadyState();
-            }, 200); // Quick check
+            }, 1500); // Minimum 1.5s to show loading animation
 
             // ==================== IMAGE PROTECTION ====================
             // Prevent context menu on all images to disable long press save
