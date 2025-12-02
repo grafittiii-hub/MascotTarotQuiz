@@ -99,6 +99,17 @@
             --font-body: 'Noto Serif TC', 'Microsoft JhengHei', 'PingFang TC', serif;
         }
 
+        /* Performance optimizations for smoother animations on all devices (especially Samsung) */
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body, .page, .container, .gallery-card, .option-btn, .btn {
+            -webkit-transform: translateZ(0);
+            transform: translateZ(0);
+            will-change: auto; /* Only set will-change when animating */
+        }
+
         /* English font override when lang is 'en' */
         html[lang="en"] {
             --font-title: 'Philosopher', Georgia, 'Times New Roman', serif;
@@ -930,8 +941,11 @@
             display: flex;
             flex-direction: column;
             gap: 0px;
+            align-items: center;
+            justify-content: center;
             height: auto;
             min-height: 2em;
+            text-align: center;
         }
 
         .gallery-card-name-zh {
@@ -940,43 +954,66 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            width: 100%;
         }
 
         .gallery-card-name-en {
-            font-size: 0.50em;
-            line-height: 1.15;
+            font-size: 10px;
+            line-height: 1.2;
             color: rgba(212, 175, 55, 0.85);
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-            hyphens: auto;
+            white-space: nowrap;
+            width: 100%;
+            padding: 0 2px;
         }
 
-        /* Dynamic font sizing for long English names - responsive to device width */
+        /* Subtle font sizing differences - all sizes close to each other for harmony */
+        .gallery-card-name-en.long {
+            font-size: 9.5px !important;
+        }
+
+        .gallery-card-name-en.very-long {
+            font-size: 9px !important;
+        }
+
+        .gallery-card-name-en.extremely-long {
+            font-size: 8.5px !important;
+        }
+
+        /* Mobile tablets (card width: 100px, available: ~82px) */
         @media (max-width: 768px) {
+            .gallery-card-name-en {
+                font-size: 9px;
+            }
+
             .gallery-card-name-en.long {
-                font-size: 0.38em;
+                font-size: 8.5px !important;
             }
 
             .gallery-card-name-en.very-long {
-                font-size: 0.32em;
+                font-size: 8px !important;
             }
 
             .gallery-card-name-en.extremely-long {
-                font-size: 0.27em;
+                font-size: 7.5px !important;
             }
         }
 
-        @media (min-width: 769px) {
+        /* Small mobile (card width: 85px, available: ~67px) */
+        @media (max-width: 520px) {
+            .gallery-card-name-en {
+                font-size: 8px;
+            }
+
             .gallery-card-name-en.long {
-                font-size: 0.38em;
+                font-size: 7.5px !important;
             }
 
             .gallery-card-name-en.very-long {
-                font-size: 0.32em;
+                font-size: 7px !important;
             }
 
             .gallery-card-name-en.extremely-long {
-                font-size: 0.28em;
+                font-size: 6.5px !important;
             }
         }
 
@@ -1440,21 +1477,6 @@
                 font-size: 0.58em;
             }
 
-            .gallery-card-name-en {
-                font-size: 0.44em;
-            }
-
-            .gallery-card-name-en.long {
-                font-size: 0.35em;
-            }
-
-            .gallery-card-name-en.very-long {
-                font-size: 0.30em;
-            }
-
-            .gallery-card-name-en.extremely-long {
-                font-size: 0.26em;
-            }
 
             .gallery-card.locked::after {
                 font-size: 1.4em;
@@ -1580,21 +1602,6 @@
                 font-size: 0.54em;
             }
 
-            .gallery-card-name-en {
-                font-size: 0.42em;
-            }
-
-            .gallery-card-name-en.long {
-                font-size: 0.34em;
-            }
-
-            .gallery-card-name-en.very-long {
-                font-size: 0.28em;
-            }
-
-            .gallery-card-name-en.extremely-long {
-                font-size: 0.25em;
-            }
 
             .gallery-container {
                 padding: 48px 12px 60px; /* Extra bottom padding for small mobile screens */
@@ -2002,8 +2009,8 @@
         const imageCache = new Map();
         let imagesPreloaded = false;
 
-        // Compress image to reduce memory usage
-        function compressImage(img, maxWidth = 400, quality = 0.7) {
+        // Compress image to reduce memory usage - FASTER compression for quicker display
+        function compressImage(img, maxWidth = 300, quality = 0.5) {
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
 
@@ -2063,6 +2070,65 @@
                 return validSequences[randomIndex];
             }
             return "????"; // Fallback
+        }
+
+        // ========== HELPER FUNCTIONS (Reduce Code Duplication) ==========
+
+        // Helper: Initialize AudioContext (used by all audio functions)
+        function getAudioContext() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            return audioContext;
+        }
+
+        // Helper: Resume AudioContext if needed
+        async function ensureAudioContextResumed() {
+            const ctx = getAudioContext();
+            if (ctx.state === 'suspended') {
+                await ctx.resume();
+            }
+        }
+
+        // Helper: Create modal with consistent styling
+        function createModal(content, onClose = null) {
+            const modal = document.createElement('div');
+            modal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 10000;';
+            modal.innerHTML = `
+                <div style="background: var(--color-primary); padding: 30px; border-radius: 10px; box-shadow: 0 0 40px rgba(212, 175, 55, 0.5); max-width: 400px; width: 90%; margin: 20px; border: 2px solid var(--color-secondary); text-align: center;">
+                    ${content}
+                </div>
+            `;
+            if (onClose) {
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        modal.remove();
+                        if (onClose) onClose();
+                    }
+                });
+            }
+            return modal;
+        }
+
+        // Helper: Load and compress image - FAST compression for quick display
+        function loadAndCompressImage(url, maxWidth = 300, quality = 0.5) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.onload = () => {
+                    try {
+                        const compressedDataUrl = compressImage(img, maxWidth, quality);
+                        const compressedImg = new Image();
+                        compressedImg.onload = () => resolve(compressedImg);
+                        compressedImg.onerror = () => resolve(img); // Fallback to original
+                        compressedImg.src = compressedDataUrl;
+                    } catch (error) {
+                        resolve(img); // Fallback to original on compression error
+                    }
+                };
+                img.onerror = () => reject(new Error(`Failed to load image: ${url}`));
+                img.src = url;
+            });
         }
 
         // Translations object
@@ -2324,56 +2390,61 @@
             document.getElementById('btn-share').textContent = canShareFiles ? lang.btnShare : lang.btnShareLink;
         }
 
-        // Preload tarot images with compression (async, non-blocking)
-        function preloadTarotImages() {
+        // Preload tarot images - ULTRA FAST (start ALL images immediately, wait for 50%)
+        async function preloadTarotImages() {
             if (imagesPreloaded) {
                 return Promise.resolve();
             }
 
-            // Start preloading immediately without blocking
-            // Reduce stagger delay from 50ms to 20ms for faster loading
-            tarotCards.forEach((card, index) => {
-                setTimeout(() => {
-                    if (imageCache.has(card.image)) return; // Skip if already cached
-
-                    const img = new Image();
-                    img.crossOrigin = 'anonymous';
-                    img.onload = () => {
-                        try {
-                            const compressedDataUrl = compressImage(img, 400, 0.75);
-                            const compressedImg = new Image();
-                            compressedImg.src = compressedDataUrl;
-                            imageCache.set(card.image, compressedImg);
-                        } catch (error) {
-                            imageCache.set(card.image, img);
-                        }
-                    };
-                    img.src = card.image;
-                }, index * 20); // Faster stagger (20ms instead of 50ms)
-            });
-
             imagesPreloaded = true;
+
+            // Start loading ALL images immediately with NO stagger delay
+            const allImagePromises = tarotCards.map(card =>
+                loadAndCompressImage(card.image)
+                    .then(img => {
+                        imageCache.set(card.image, img);
+                        return true; // Success
+                    })
+                    .catch(() => false) // Silently fail, return false
+            );
+
+            // Wait for 50% of images to load (11 out of 22), then proceed
+            const halfLoaded = Math.ceil(tarotCards.length / 2);
+            let loadedCount = 0;
+
+            await Promise.race([
+                // Option 1: Wait until 50% loaded
+                new Promise(resolve => {
+                    allImagePromises.forEach(promise => {
+                        promise.then(() => {
+                            loadedCount++;
+                            if (loadedCount >= halfLoaded) {
+                                resolve();
+                            }
+                        });
+                    });
+                }),
+                // Option 2: Timeout after 3 seconds max
+                new Promise(resolve => setTimeout(resolve, 3000))
+            ]);
+
+            // Continue loading remaining images in background (don't wait)
+            Promise.all(allImagePromises).catch(() => {});
+
             return Promise.resolve();
         }
 
         // Preload specific result image immediately (called during quiz)
-        function preloadResultImage(resultIndex) {
+        async function preloadResultImage(resultIndex) {
             const result = tarotCards[resultIndex];
             if (!result || imageCache.has(result.image)) return;
 
-            const img = new Image();
-            img.crossOrigin = 'anonymous';
-            img.onload = () => {
-                try {
-                    const compressedDataUrl = compressImage(img, 400, 0.75);
-                    const compressedImg = new Image();
-                    compressedImg.src = compressedDataUrl;
-                    imageCache.set(result.image, compressedImg);
-                } catch (error) {
-                    imageCache.set(result.image, img);
-                }
-            };
-            img.src = result.image;
+            try {
+                const img = await loadAndCompressImage(result.image, 400, 0.75);
+                imageCache.set(result.image, img);
+            } catch (error) {
+                // Silently fail
+            }
         }
 
         // Create transition overlay with starry effect
@@ -2702,15 +2773,7 @@
                 userAnswers[currentQuestionIndex] = val;
                 totalScore += val;
 
-                // Preload possible result images after question 3 (predictive loading)
-                if (currentQuestionIndex === 3) {
-                    // On last question, preload all possible results based on current score
-                    for (let i = 0; i < 4; i++) {
-                        const possibleScore = totalScore + (i * 2); // Approximate possible final scores
-                        const possibleIndex = possibleScore % 22;
-                        preloadResultImage(possibleIndex);
-                    }
-                }
+                // No need to preload - all images already loading from page start!
 
                 setTimeout(() => {
                     currentQuestionIndex++;
@@ -2737,7 +2800,7 @@
             }
         }
 
-        // Calculate result
+        // Calculate result - FAST (don't wait for image, show page immediately)
         function calculateResult() {
             try {
                 const resultIndex = totalScore % 22;
@@ -2767,51 +2830,38 @@
                 const desc = currentLanguage === 'zh' ? result.descZh : result.descEn;
                 descElement.innerHTML = `**【${result.name}】**<br><br>${desc}`;
 
-                // Set a placeholder while loading (simple gradient placeholder)
-                imgElement.style.opacity = '0.3';
-                imgElement.style.background = 'linear-gradient(135deg, rgba(106, 5, 114, 0.3), rgba(212, 175, 55, 0.3))';
-
-                // Sound effect removed as per user request
-
-                // Start transition immediately, don't wait for image
-                showPage('result-page', true);
-
-                // Load image in parallel during transition
-                if (!imageCache.has(result.image)) {
-                    const preloadImg = new Image();
-                    preloadImg.crossOrigin = 'anonymous';
-                    preloadImg.onload = () => {
-                        try {
-                            const compressedDataUrl = compressImage(preloadImg, 400, 0.75);
-                            const compressedImg = new Image();
-                            compressedImg.onload = () => {
-                                imageCache.set(result.image, compressedImg);
-                                imgElement.src = compressedImg.src;
-                                // Fade in the image
-                                imgElement.style.opacity = '1';
-                                imgElement.style.background = 'none';
-                            };
-                            compressedImg.src = compressedDataUrl;
-                        } catch (error) {
-                            imageCache.set(result.image, preloadImg);
-                            imgElement.src = preloadImg.src;
-                            imgElement.style.opacity = '1';
-                            imgElement.style.background = 'none';
-                        }
-                    };
-                    preloadImg.onerror = () => {
-                        // If loading fails, use original URL
-                        imgElement.src = result.image;
-                        imgElement.style.opacity = '1';
-                        imgElement.style.background = 'none';
-                    };
-                    preloadImg.src = result.image;
-                } else {
-                    // Image already cached, use it immediately
+                // Set image immediately if cached, or show placeholder and load in background
+                if (imageCache.has(result.image)) {
+                    // Image already cached - instant display
                     imgElement.src = imageCache.get(result.image).src;
                     imgElement.style.opacity = '1';
                     imgElement.style.background = 'none';
+                } else {
+                    // Show subtle placeholder while loading
+                    imgElement.style.opacity = '0.4';
+                    imgElement.style.background = 'linear-gradient(135deg, rgba(106, 5, 114, 0.2), rgba(212, 175, 55, 0.2))';
+
+                    // Load image in background (non-blocking)
+                    loadAndCompressImage(result.image)
+                        .then(loadedImg => {
+                            imageCache.set(result.image, loadedImg);
+                            imgElement.src = loadedImg.src;
+                            // Smooth fade in
+                            imgElement.style.transition = 'opacity 0.3s ease';
+                            imgElement.style.opacity = '1';
+                            imgElement.style.background = 'none';
+                        })
+                        .catch(() => {
+                            // Fallback to original URL
+                            imgElement.src = result.image;
+                            imgElement.style.opacity = '1';
+                            imgElement.style.background = 'none';
+                        });
                 }
+
+                // Show result page with transition immediately (don't wait for image)
+                showPage('result-page', true);
+
             } catch (error) {
                 console.error('Error calculating result:', error);
                 // Try to show result page anyway
@@ -3226,13 +3276,23 @@
                 enDiv.textContent = enName;
 
                 // Apply dynamic font sizing based on English name length
-                if (enName.length > 16) {
+                let sizeClass = '';
+                if (enName.length > 15) {
+                    sizeClass = 'extremely-long';
                     enDiv.classList.add('extremely-long');
                 } else if (enName.length > 13) {
+                    sizeClass = 'very-long';
                     enDiv.classList.add('very-long');
                 } else if (enName.length > 10) {
+                    sizeClass = 'long';
                     enDiv.classList.add('long');
+                } else {
+                    sizeClass = 'normal';
                 }
+
+                // Store size info as data attributes (for debugging if needed)
+                enDiv.setAttribute('data-size-class', sizeClass);
+                enDiv.setAttribute('data-length', enName.length);
 
                 nameDiv.appendChild(zhDiv);
                 nameDiv.appendChild(enDiv);
@@ -4006,34 +4066,28 @@
 
         // Custom alert
         function showCustomAlert(message) {
-            const modal = document.createElement('div');
-            modal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 10000;';
-            modal.innerHTML = `
-                <div style="background: var(--color-primary); padding: 30px; border-radius: 10px; box-shadow: 0 0 40px rgba(212, 175, 55, 0.5); max-width: 400px; width: 90%; margin: 20px; border: 2px solid var(--color-secondary); text-align: center;">
-                    <p style="color: var(--color-text-light); margin-bottom: 20px; white-space: pre-line; line-height: 1.6;">${message}</p>
-                    <button class="btn" onclick="this.closest('div').parentElement.remove()">${currentLanguage === 'zh' ? '確定' : 'OK'}</button>
-                </div>
+            const content = `
+                <p style="color: var(--color-text-light); margin-bottom: 20px; white-space: pre-line; line-height: 1.6;">${message}</p>
+                <button class="btn" onclick="this.closest('div').parentElement.remove()">${currentLanguage === 'zh' ? '確定' : 'OK'}</button>
             `;
+            const modal = createModal(content);
             document.body.appendChild(modal);
         }
 
         // Custom alert with retry option
         function showRetryAlert(message, retryCallback) {
-            const modal = document.createElement('div');
-            modal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 10000;';
-            modal.innerHTML = `
-                <div style="background: var(--color-primary); padding: 30px; border-radius: 10px; box-shadow: 0 0 40px rgba(212, 175, 55, 0.5); max-width: 400px; width: 90%; margin: 20px; border: 2px solid var(--color-secondary); text-align: center;">
-                    <p style="color: var(--color-text-light); margin-bottom: 20px; white-space: pre-line; line-height: 1.6;">${message}</p>
-                    <div style="display: flex; gap: 10px; justify-content: center;">
-                        <button class="btn" onclick="this.closest('div').parentElement.remove(); (${retryCallback.toString()})()" style="background: var(--color-secondary);">
-                            ${currentLanguage === 'zh' ? '重試' : 'Retry'}
-                        </button>
-                        <button class="btn" onclick="this.closest('div').parentElement.remove()" style="background: rgba(193, 84, 193, 0.8);">
-                            ${currentLanguage === 'zh' ? '取消' : 'Cancel'}
-                        </button>
-                    </div>
+            const content = `
+                <p style="color: var(--color-text-light); margin-bottom: 20px; white-space: pre-line; line-height: 1.6;">${message}</p>
+                <div style="display: flex; gap: 10px; justify-content: center;">
+                    <button class="btn" onclick="this.closest('div').parentElement.remove(); (${retryCallback.toString()})()" style="background: var(--color-secondary);">
+                        ${currentLanguage === 'zh' ? '重試' : 'Retry'}
+                    </button>
+                    <button class="btn" onclick="this.closest('div').parentElement.remove()" style="background: rgba(193, 84, 193, 0.8);">
+                        ${currentLanguage === 'zh' ? '取消' : 'Cancel'}
+                    </button>
                 </div>
             `;
+            const modal = createModal(content);
             document.body.appendChild(modal);
         }
 
@@ -4058,14 +4112,8 @@
             try {
                 // ========== OPTION 1: Web Audio API (No file needed) ==========
                 // Generates a mystical chime programmatically
-                if (!audioContext) {
-                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                }
-
-                // Resume audio context if suspended (required for autoplay)
-                if (audioContext.state === 'suspended') {
-                    await audioContext.resume();
-                }
+                const audioContext = getAudioContext();
+                await ensureAudioContextResumed();
 
                 const now = audioContext.currentTime;
                 const duration = 1.2;
@@ -4115,14 +4163,8 @@
             if (!soundEnabled) return;
 
             try {
-                if (!audioContext) {
-                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                }
-
-                // Resume audio context if suspended (required for repeated plays)
-                if (audioContext.state === 'suspended') {
-                    await audioContext.resume();
-                }
+                const audioContext = getAudioContext();
+                await ensureAudioContextResumed();
 
                 const oscillator = audioContext.createOscillator();
                 const gainNode = audioContext.createGain();
@@ -4150,14 +4192,8 @@
             if (!soundEnabled) return;
 
             try {
-                if (!audioContext) {
-                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                }
-
-                // Resume audio context if suspended (required for repeated plays)
-                if (audioContext.state === 'suspended') {
-                    await audioContext.resume();
-                }
+                const audioContext = getAudioContext();
+                await ensureAudioContextResumed();
 
                 const now = audioContext.currentTime;
 
@@ -4214,14 +4250,8 @@
             if (!soundEnabled) return;
 
             try {
-                if (!audioContext) {
-                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                }
-
-                // Resume audio context if suspended
-                if (audioContext.state === 'suspended') {
-                    await audioContext.resume();
-                }
+                const audioContext = getAudioContext();
+                await ensureAudioContextResumed();
 
                 const now = audioContext.currentTime;
 
@@ -4305,14 +4335,8 @@
             if (!soundEnabled) return;
 
             try {
-                if (!audioContext) {
-                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                }
-
-                // Resume audio context if suspended
-                if (audioContext.state === 'suspended') {
-                    await audioContext.resume();
-                }
+                const audioContext = getAudioContext();
+                await ensureAudioContextResumed();
 
                 const oscillator = audioContext.createOscillator();
                 const gainNode = audioContext.createGain();
@@ -4341,14 +4365,8 @@
             if (!soundEnabled) return;
 
             try {
-                if (!audioContext) {
-                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                }
-
-                // Resume audio context if suspended
-                if (audioContext.state === 'suspended') {
-                    await audioContext.resume();
-                }
+                const audioContext = getAudioContext();
+                await ensureAudioContextResumed();
 
                 const now = audioContext.currentTime;
 
