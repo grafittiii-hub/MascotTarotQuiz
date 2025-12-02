@@ -1919,8 +1919,8 @@
     </div>
 
     <div id="result-page" class="container">
-        <div style="margin-bottom: 10px;">
-            <h2 id="result-title" style="margin: 0; font-size: 1.3em; text-align: center;">你的專屬塔羅啟示</h2>
+        <div style="margin-bottom: 10px; text-align: center; width: 100%; padding: 0;">
+            <h2 id="result-title" style="margin: 0; font-size: 1.3em; text-align: center; padding: 0; width: 100%;">你的專屬塔羅啟示</h2>
         </div>
 
         <img id="result-img" src="" alt="Tarot Card Result" loading="eager">
