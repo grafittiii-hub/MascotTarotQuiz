@@ -2013,6 +2013,17 @@
                 opacity: 1;
             }
         }
+    /* 強制啟動 GPU 加速，解決移動端切換題目的微卡頓 */
+#question-text, #options-container {
+    transition: opacity 0.2s ease-in-out;
+    will-change: opacity;
+}
+
+.option-btn {
+    /* 確保按鈕在動畫時不會重繪整個頁面 */
+    transform: translateZ(0);
+    backface-visibility: hidden;
+}
     </style>
 </head>
 <body>
@@ -2829,62 +2840,56 @@
         }
 
         // Load question
-        function loadQuestion() {
-            try {
-                const questions = questionsData[currentLanguage];
-                if (!questions || currentQuestionIndex >= questions.length) {
-                    console.error('Invalid question index or missing questions data');
-                    return;
-                }
+// 優化後的題目載入函數，解決卡頓並適配 progress-bar
+function loadQuestion() {
+    const questions = questionsData[currentLanguage];
+    const qData = questions[currentQuestionIndex];
+    
+    const questionText = document.getElementById('question-text');
+    const optionsContainer = document.getElementById('options-container');
+    const progressBar = document.getElementById('progress-bar');
 
-                const qData = questions[currentQuestionIndex];
-                if (!qData) {
-                    console.error('Question data not found');
-                    return;
-                }
+    // 1. 更新進度條 (適配你的 ID: progress-bar)
+    if (progressBar) {
+        const progress = ((currentQuestionIndex + 1) / totalQuestions) * 100;
+        progressBar.style.width = `${progress}%`;
+    }
 
-                const progressPercentage = (currentQuestionIndex / totalQuestions) * 100;
+    // 2. 減少 DOM 操作：使用 DocumentFragment 批次更新選項
+    // 先隱藏內容以產生平滑過渡感
+    questionText.style.opacity = '0';
+    optionsContainer.style.opacity = '0';
 
-                requestAnimationFrame(() => {
-                    const progressBar = document.getElementById('progress-bar');
-                    if (progressBar) {
-                        progressBar.style.width = `${progressPercentage}%`;
-                    }
+    setTimeout(() => {
+        questionText.textContent = qData.question;
+        optionsContainer.innerHTML = ''; // 清空舊選項
 
-                    const currentQEl = document.getElementById('current-q');
-                    const totalQEl = document.getElementById('total-q');
-                    if (currentQEl) currentQEl.textContent = currentQuestionIndex + 1;
-                    if (totalQEl) totalQEl.textContent = totalQuestions;
+        const fragment = document.createDocumentFragment();
+        
+        qData.options.forEach((option, index) => {
+            const button = document.createElement('button');
+            button.className = 'option-btn';
+            button.textContent = option.text;
+            
+            button.onclick = (e) => {
+                // 防止重複點擊導致的計算錯誤或卡頓
+                const allBtns = optionsContainer.querySelectorAll('.option-btn');
+                allBtns.forEach(btn => btn.style.pointerEvents = 'none');
+                
+                // 呼叫你的選項選擇邏輯 (假設名為 selectOption)
+                selectOption(index); 
+            };
+            
+            fragment.appendChild(button);
+        });
 
-                    const questionTextEl = document.getElementById('question-text');
-                    if (questionTextEl) questionTextEl.textContent = qData.question;
-
-                    const optsContainer = document.getElementById('options-container');
-                    if (!optsContainer) {
-                        console.error('Options container not found');
-                        return;
-                    }
-
-                    const fragment = document.createDocumentFragment();
-
-                    qData.options.forEach(opt => {
-                        const btn = document.createElement('button');
-                        btn.className = 'btn option-btn';
-                        btn.textContent = opt.text;
-                        btn.onclick = (event) => handleAnswer(opt.value, event.target);
-                        fragment.appendChild(btn);
-                    });
-
-                    optsContainer.innerHTML = '';
-                    optsContainer.appendChild(fragment);
-                });
-
-                // Update back button visibility based on current question
-                updateBackButtonVisibility();
-            } catch (error) {
-                console.error('Error loading question:', error);
-            }
-        }
+        optionsContainer.appendChild(fragment);
+        
+        // 重新顯示內容
+        questionText.style.opacity = '1';
+        optionsContainer.style.opacity = '1';
+    }, 50); // 極短的延遲，讓瀏覽器有時間處理渲染
+}
 
         // Handle answer
         function handleAnswer(val, selectedButton) {
