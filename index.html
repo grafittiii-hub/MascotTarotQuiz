@@ -3458,8 +3458,13 @@
             }
         }
 
-        // Show hint for locked card
+// Show hint for locked card
         function showCardHint(cardIndex) {
+            // 🌟 優化 1：防護機制。如果畫面上已經有提示層，就忽略這次點擊，避免重疊與卡頓
+            if (document.querySelector('.hint-backdrop')) {
+                return; 
+            }
+
             const card = tarotCards[cardIndex];
             const sequence = calculateAnswerSequence(cardIndex);
             const lang = t[currentLanguage];
@@ -3471,13 +3476,15 @@
 
             const hintModal = document.createElement('div');
             hintModal.className = 'card-hint';
+            
+            // 🌟 優化 2：將按鈕的 id 改為 class，避免重複生成時的 ID 衝突
             hintModal.innerHTML = `
                 <h3>${lang.hintTitle}</h3>
                 <p style="font-size: 0.9em; color: var(--color-text-gold);">${card.name}</p>
                 <p>${lang.hintDesc}</p>
                 <div class="hint-sequence">${sequence}</div>
                 <p style="font-size: 0.85em; opacity: 0.8;">${currentLanguage === 'zh' ? '答案順序對應四題選項 (1-4)' : 'Answer sequence for 4 questions (1-4)'}</p>
-                <button class="btn" id="hint-close-btn">${lang.hintClose}</button>
+                <button class="btn hint-close-btn">${lang.hintClose}</button>
             `;
 
             // Function to close hint and remove backdrop
@@ -3492,8 +3499,8 @@
             document.body.appendChild(backdrop);
             document.body.appendChild(hintModal);
 
-            // Button click closes hint
-            document.getElementById('hint-close-btn').onclick = closeHint;
+            // 🌟 優化 3：改用 querySelector 在這個特定的 Modal 內尋找按鈕並綁定事件
+            hintModal.querySelector('.hint-close-btn').onclick = closeHint;
 
             // Vibrate if available
             if (navigator.vibrate) {
