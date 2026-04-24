@@ -2845,50 +2845,44 @@ function loadQuestion() {
     const questions = questionsData[currentLanguage];
     const qData = questions[currentQuestionIndex];
     
+    // 獲取原始 ID
     const questionText = document.getElementById('question-text');
     const optionsContainer = document.getElementById('options-container');
     const progressBar = document.getElementById('progress-bar');
 
-    // 1. 更新進度條 (適配你的 ID: progress-bar)
+    // 1. 更新進度條 (保持原本進度條樣式)
     if (progressBar) {
         const progress = ((currentQuestionIndex + 1) / totalQuestions) * 100;
         progressBar.style.width = `${progress}%`;
     }
 
-    // 2. 減少 DOM 操作：使用 DocumentFragment 批次更新選項
-    // 先隱藏內容以產生平滑過渡感
-    questionText.style.opacity = '0';
-    optionsContainer.style.opacity = '0';
+    // 2. 核心優化：更新題目文字
+    questionText.textContent = qData.question;
 
-    setTimeout(() => {
-        questionText.textContent = qData.question;
-        optionsContainer.innerHTML = ''; // 清空舊選項
+    // 3. 核心優化：使用 DocumentFragment 減少瀏覽器重繪次數 (這是解決卡頓的關鍵)
+    const fragment = document.createDocumentFragment();
+    optionsContainer.innerHTML = ''; // 清空容器
 
-        const fragment = document.createDocumentFragment();
+    qData.options.forEach((option, index) => {
+        // 🌟 關鍵：這裡只建立元素，完全不設定 style，直接繼承你原本的 CSS
+        const button = document.createElement('button');
+        button.className = 'option-btn'; // 100% 沿用你原本的樣式類名
+        button.textContent = option.text;
         
-        qData.options.forEach((option, index) => {
-            const button = document.createElement('button');
-            button.className = 'option-btn';
-            button.textContent = option.text;
+        button.onclick = () => {
+            // 防止快速連點導致的邏輯混亂
+            const allBtns = optionsContainer.querySelectorAll('.option-btn');
+            allBtns.forEach(btn => btn.style.pointerEvents = 'none');
             
-            button.onclick = (e) => {
-                // 防止重複點擊導致的計算錯誤或卡頓
-                const allBtns = optionsContainer.querySelectorAll('.option-btn');
-                allBtns.forEach(btn => btn.style.pointerEvents = 'none');
-                
-                // 呼叫你的選項選擇邏輯 (假設名為 selectOption)
-                selectOption(index); 
-            };
-            
-            fragment.appendChild(button);
-        });
-
-        optionsContainer.appendChild(fragment);
+            // 執行你原本的選擇邏輯
+            selectOption(index); 
+        };
         
-        // 重新顯示內容
-        questionText.style.opacity = '1';
-        optionsContainer.style.opacity = '1';
-    }, 50); // 極短的延遲，讓瀏覽器有時間處理渲染
+        fragment.appendChild(button);
+    });
+
+    // 最後一次性掛載，瀏覽器只需要渲染一次，就不會卡頓了
+    optionsContainer.appendChild(fragment);
 }
 
         // Handle answer
