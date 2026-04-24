@@ -811,6 +811,32 @@
             margin: 8px;
         }
 
+        /* 針對 Chrome, Safari, Edge (WebKit) */
+::-webkit-scrollbar {
+    width: 6px;  /* 寬度變得很細 */
+    height: 6px; /* 橫向捲軸高度 */
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(13, 2, 33, 0.1); /* 軌道接近透明 */
+}
+
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(to bottom, var(--color-secondary), var(--color-text-gold)); /* 使用你的金色變量 */
+    border-radius: 10px; /* 圓角化 */
+    border: 2px solid transparent; /* 增加一點邊距感 */
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--color-text-gold); /* 滑鼠移上去時變亮 */
+}
+
+/* 針對 Firefox */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-text-gold) rgba(13, 2, 33, 0.1);
+}
+        
         .gallery-modal {
             display: none;
             position: fixed;
@@ -824,9 +850,20 @@
             overflow-x: hidden;
             animation: fadeIn 0.3s ease-out;
             padding: 0;
+            padding-right: 5px; /* 給內容一點右邊距，避免文字貼齊邊緣 */
+            scrollbar-gutter: stable; /* 預留空間，防止內容因為捲軸出現而晃動 */
             -webkit-overflow-scrolling: touch; /* Smooth scrolling on mobile */
         }
 
+        .gallery-content::-webkit-scrollbar-thumb {
+        background: var(--color-text-gold);
+        border-radius: 2px;
+        }
+
+        /* 只針對圖鑑內容做精細捲軸設計 */
+        .gallery-content::-webkit-scrollbar {width: 4px;
+                                            }
+        
         .gallery-modal.active {
             display: block;
         }
